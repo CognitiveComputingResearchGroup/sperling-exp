@@ -1,0 +1,21 @@
+#################
+# Global Config #
+#################
+screen:
+  width: 800
+  height: 600
+n_trials: 10
+
+##############################
+# Experiment-Specific Config #
+##############################
+
+# Grid (Stimulus) Specification
+grid:
+  n_rows: 4
+  n_columns: 3
+
+  # Supported values: consonants, alpha, alphanum
+  charset: consonants
+
+# Timing parameters
