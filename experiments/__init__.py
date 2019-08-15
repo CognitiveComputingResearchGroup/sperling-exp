@@ -90,3 +90,53 @@ class Experiment1(Experiment):
         self.grid_spec = GridSpec(n_rows=grid['n_rows'],
                                   n_columns=grid['n_columns'],
                                   charset_id=grid['charset'])
+
+
+def no_op():
+    pass
+
+
+class DisplayItem(object):
+    def __init__(self, render, pre=no_op, post=no_op, interrupt_after=None):
+        self.render = render
+        self.pre = pre
+        self.post = post
+        self.interrupt_after = interrupt_after
+
+        self._validate()
+
+    def _validate(self):
+        if not callable(self.render):
+            raise ValueError('render must be a callable')
+
+        if self.pre and not callable(self.pre):
+            raise ValueError('pre, if defined, must be a callable')
+
+        if self.post and not callable(self.post):
+            raise ValueError('post, if defined, must be a callable')
+
+        if self.interrupt_after and self.interrupt_after <= 0:
+            raise ValueError('interrupt_after, if defined, must be positive: received {}'.format(self.interrupt_after))
+
+
+class SerialDisplayer(object):
+    def __init__(self, items):
+        self.items = items
+
+        self._validate()
+
+    def _validate(self):
+        # Check that items is iterable
+        iter(self.items)
+
+        # Check that items not empty
+        if not self.items:
+            raise ValueError('items must not be empty')
+
+        # Check that all items are of DisplayItem type
+        for item in self.items:
+            if not isinstance(item, DisplayItem):
+                raise TypeError('item of invalid type: {}'.format(type(item)))
+
+    def __len__(self):
+        return len(self.items)

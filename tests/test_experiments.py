@@ -3,6 +3,82 @@ from unittest import TestCase
 import experiments
 
 
+class TestSerialDisplayer(TestCase):
+
+    def test_init(self):
+        # Test no items returns error
+        with self.assertRaises(ValueError) as context:
+            experiments.SerialDisplayer(items=[])
+        self.assertEqual(str(context.exception), 'items must not be empty')
+
+        # Test non-iterable returns error
+        with self.assertRaises(TypeError) as context:
+            experiments.SerialDisplayer(items=1)
+
+        # Test iterable containing objects that are not DisplayItems returns error
+        with self.assertRaises(TypeError) as context:
+            experiments.SerialDisplayer(items='invalid')
+        self.assertIn('item of invalid type', str(context.exception))
+
+        # Valid input
+        try:
+            items = [experiments.DisplayItem(render=lambda x: x) for item in range(10)]
+
+            display = experiments.SerialDisplayer(items)
+            self.assertEqual(display.items, items)
+
+        except Exception as exc:
+            self.fail('Received unexpected exception: {}'.format(exc))
+
+    def test_len(self):
+
+        items = [experiments.DisplayItem(render=lambda x: x) for item in range(10)]
+        display = experiments.SerialDisplayer(items)
+
+        self.assertEqual(len(display), len(items))
+
+class TestDisplayItem(TestCase):
+    def test_init(self):
+
+        # A render callback must be provided and a callable
+        with self.assertRaises(ValueError) as context:
+            experiments.DisplayItem(render=10)
+        self.assertEqual(str(context.exception), 'render must be a callable')
+
+        # A pre callback must be provided and a callable
+        with self.assertRaises(ValueError) as context:
+            experiments.DisplayItem(render=experiments.no_op, pre='invalid')
+        self.assertEqual(str(context.exception), 'pre, if defined, must be a callable')
+
+        # A post callback, if provided, must be a callable
+        with self.assertRaises(ValueError) as context:
+            experiments.DisplayItem(render=experiments.no_op, post='invalid')
+        self.assertEqual(str(context.exception), 'post, if defined, must be a callable')
+
+        # A interrupt time, if provided, must be a callable
+        with self.assertRaises(ValueError) as context:
+            experiments.DisplayItem(render=experiments.no_op, interrupt_after=-1)
+        self.assertEqual(str(context.exception),
+                         'interrupt_after, if defined, must be positive: received {}'.format(-1))
+
+        # Valid input
+        try:
+            pre = lambda x: 1
+            render = lambda x: 2
+            post = lambda x: 3
+            interrupt_after = 1234
+
+            item = experiments.DisplayItem(render, pre, post, interrupt_after)
+
+            self.assertEqual(item.render, render)
+            self.assertEqual(item.pre, pre)
+            self.assertEqual(item.post, post)
+            self.assertEqual(item.interrupt_after, interrupt_after)
+
+        except Exception as exc:
+            self.fail('Received unexpected exception: {}'.format(exc))
+
+
 class TestGridSpec(TestCase):
 
     def test_valid_grid_specs(self):
