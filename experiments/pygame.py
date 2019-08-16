@@ -46,7 +46,7 @@ class Character(pygame.sprite.Sprite):
 
 
 class CharacterGrid:
-    def __init__(self, grid_spec, pos, width, height, font, vert_margin=0, horiz_margin=0):
+    def __init__(self, grid_spec, pos, width, height, font, vert_margin=0, horiz_margin=0, color=(0,0,0)):
         super().__init__()
 
         self.grid_spec = grid_spec
@@ -54,6 +54,7 @@ class CharacterGrid:
         self.height = height
         self.font = font
         self.pos = pos
+        self.color = color
 
         self._char_dims = Dimensions(*self.font.size('A'))  # Assumes fixed-width font
         self._grid_dims = Dimensions(width, height)
@@ -64,7 +65,6 @@ class CharacterGrid:
 
         # Pygame Surfaces and Sprites
         self.grid_surface = pygame.Surface([width, height])
-        self.grid_surface.fill((30, 30, 30))
 
         self.reset()
 
@@ -108,11 +108,15 @@ class CharacterGrid:
         return sprites
 
     def draw(self, surface):
-        # Draw grid surface onto enclosing surface
-        surface.blit(self.grid_surface, self.pos)
+
+        # Clear previously rendered letters from surface
+        self.grid_surface.fill(self.color)
 
         # Draw all sprites onto grid surface
         self.sprite_group.draw(self.grid_surface)
+
+        # Draw grid surface onto enclosing surface
+        surface.blit(self.grid_surface, self.pos)
 
     def update(self):
         self.sprite_group.update()
