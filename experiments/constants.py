@@ -11,4 +11,4 @@ ALPHANUM = ALPHA.union(string.digits)
 VOWELS = set('AEIOUY')
 CONSONANTS = ALPHA.difference(VOWELS)
 
-UNLIMITED_DURATION = 0
+UNLIMITED_DURATION = float('inf')

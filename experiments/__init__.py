@@ -8,6 +8,8 @@ import experiments.datatypes
 import experiments.functions
 import experiments.view
 
+MAX_DURATION = 60000
+
 
 class SerialTrialRunner(object):
     def __init__(self, trial, clock, surface, fps):
@@ -27,7 +29,8 @@ class SerialTrialRunner(object):
     def execute_item(cls, item, runner):
         elapsed_time = 0
 
-        while elapsed_time <= item.duration:
+        terminal_event = False
+        while not terminal_event and elapsed_time <= (item.duration or MAX_DURATION):
 
             # Pre-render processing
             item.pre()
@@ -40,7 +43,7 @@ class SerialTrialRunner(object):
                     return elapsed_time
 
                 # Item specific event processing
-                item.process_event(event)
+                terminal_event = item.process_event(event)
 
             # Render surface updates
             item.render(runner.surface)
@@ -88,7 +91,7 @@ class TrialItem(object):
         self.renderer(args, kwargs)
 
     def process_event(self, event):
-        self.event_processor(event)
+        return self.event_processor(event)
 
 
 MAX_GRID_ROWS = 5

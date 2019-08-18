@@ -1,6 +1,6 @@
 import pygame
-import sys
 
+import experiments.constants
 from experiments.datatypes import Dimensions
 
 
@@ -86,8 +86,8 @@ class CharacterGrid:
 
         n_rows, n_cols = self.n_rows, self.n_columns
 
-        space_x = (w_grid - self._margin_dims.width - n_cols * w_char) // (n_cols - 1)
-        space_y = (h_grid - self._margin_dims.height - n_rows * h_char) // (n_rows - 1)
+        space_x = 0 if n_cols == 1 else (w_grid - self._margin_dims.width - n_cols * w_char) // (n_cols - 1)
+        space_y = 0 if n_rows == 1 else (h_grid - self._margin_dims.height - n_rows * h_char) // (n_rows - 1)
 
         return Dimensions(space_x, space_y)
 
@@ -116,6 +116,10 @@ class CharacterGrid:
 
     def update(self):
         self.sprite_group.update()
+
+    def refresh(self):
+        self.sprite_group = pygame.sprite.Group()
+        self.sprite_group.add(self._create_sprites())
 
 
 class GridRenderer:
@@ -149,6 +153,9 @@ class GridRenderer:
         self.char_grid.update()
         self.char_grid.draw(self.screen)
 
+    def refresh(self):
+        self.char_grid.refresh()
+
 
 class SpriteRenderer(object):
     def __init__(self, screen, sprite):
@@ -167,3 +174,52 @@ class MaskRenderer(object):
 
     def __call__(self, *args, **kwargs):
         self.screen.fill(self.color)
+
+
+class WaitUntilKeyHandler(object):
+    def __init__(self, terminal_event):
+        self.terminal_event = terminal_event
+
+    def __call__(self, event):
+        if event.type == pygame.KEYDOWN and event.key == self.terminal_event:
+            return True
+
+        return False
+
+
+key_dict = {eval('pygame.K_{}'.format(char.lower())): char.upper() for char in experiments.constants.CONSONANTS}
+
+
+class GridEventHandler(WaitUntilKeyHandler):
+    def __init__(self, grid, view, terminal_event):
+        super().__init__(terminal_event)
+
+        self.grid = grid
+        self.view = view
+        self.n_rows, self.n_cols = len(self.grid), len(self.grid[0])
+        self.pos = [0, 0]
+
+    def __call__(self, event):
+        if event.type == pygame.KEYDOWN:
+
+            # process characters in charset
+            if event.key in key_dict:
+                self.grid[self.pos[0]][self.pos[1]] = key_dict[event.key]
+                self.view.refresh()
+
+            # question mark
+            elif event.key == pygame.K_SLASH and pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                self.grid[self.pos[0]][self.pos[1]] = '?'
+                self.view.refresh()
+
+            # move grid position
+            elif event.key == pygame.K_UP:
+                self.pos[0] = (self.pos[0] - 1) % self.n_rows
+            elif event.key == pygame.K_DOWN:
+                self.pos[0] = (self.pos[0] + 1) % self.n_rows
+            elif event.key == pygame.K_LEFT:
+                self.pos[1] = (self.pos[1] - 1) % self.n_cols
+            elif event.key == pygame.K_RIGHT:
+                self.pos[1] = (self.pos[1] + 1) % self.n_cols
+
+        return super().__call__(event)
