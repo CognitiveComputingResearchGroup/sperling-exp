@@ -1,56 +1,108 @@
-import string
-import yaml
 import collections
 import random
 
-Screen = collections.namedtuple('Screen', ["width", "height"])
+import pygame
 
-DEFAULT_WIDTH = 800
-DEFAULT_HEIGHT = 600
+import experiments.constants
+import experiments.datatypes
+import experiments.functions
+import experiments.model
+import experiments.view
 
 
-class Experiment:
+class SerialTrialRunner(object):
+    def __init__(self, trial, clock, surface, fps):
+        self.trial = trial
+        self.clock = clock
+        self.surface = surface
+        self.fps = fps
 
-    def __init__(self, config):
-        self._config = None
+    def run(self):
+        total_elapsed_time = 0
+        for item in self.trial:
+            total_elapsed_time += self.execute_item(item, self)
 
-        with open(config, 'r') as stream:
-            self._config = yaml.safe_load(stream)
+        return total_elapsed_time
 
-        self.screen = Screen(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    @classmethod
+    def execute_item(cls, item, runner):
+        elapsed_time = 0
 
-        self._load_global(self._config)
-        self._load_specific(self._config)
+        while elapsed_time <= item.duration:
 
-    def __str__(self):
-        pass
+            # Pre-render processing
+            item.pre()
 
-    def __repr__(self):
-        pass
+            # Process Events
+            for event in pygame.event.get():
 
-    def _load_global(self, config):
-        print("Processing global config")
+                # Global termination events
+                if view.is_terminal_event(event):
+                    return elapsed_time
 
-        self.screen = Screen(width=config['screen']['width'],
-                             height=config['screen']['height'])
+                # Item specific event processing
+                item.process_event(event)
 
-    def _load_specific(self, config):
-        pass
+            # Render surface updates
+            item.render(runner.surface)
+            pygame.display.flip()
+
+            elapsed_time += runner.clock.get_time()
+
+            # Pre-render processing
+            item.post()
+
+            # Advance clock
+            runner.clock.tick(runner.fps)
+
+        return elapsed_time
+
+
+class TrialItem(object):
+    def __init__(self, renderer, event_processor=experiments.functions.no_op, pre=experiments.functions.no_op,
+                 post=experiments.functions.no_op, duration=0):
+        self.renderer = renderer
+        self.event_processor = event_processor
+        self.pre = pre
+        self.post = post
+        self.duration = duration
+
+        self._validate()
+
+    def _validate(self):
+        if not callable(self.renderer):
+            raise ValueError('renderer must be a callable')
+
+        if self.event_processor and not callable(self.event_processor):
+            raise ValueError('event_processor, if defined, must be a callable')
+
+        if self.pre and not callable(self.pre):
+            raise ValueError('pre, if defined, must be a callable')
+
+        if self.post and not callable(self.post):
+            raise ValueError('post, if defined, must be a callable')
+
+        if self.duration and self.duration < 0:
+            raise ValueError('duration, if defined, must be non-negative')
+
+    def render(self, *args, **kwargs):
+        self.renderer(args, kwargs)
+
+    def process_event(self, event):
+        self.event_processor(event)
 
 
 MAX_GRID_ROWS = 5
 MAX_GRID_COLUMNS = 5
 
-ALPHA = set(string.ascii_uppercase)
-ALPHANUM = ALPHA.union(string.digits)
-VOWELS = set('AEIOUY')
-CONSONANTS = ALPHA.difference(VOWELS)
+CHARSET_ALPHANUM = 'alphanum'
+CHARSET_ALPHA = 'alpha'
+CHARSET_CONSONANTS = 'consonants'
 
-CHARSET_CONSONANTS = ''
-SUPPORTED_CHARSETS_DICT = {
-    'consonants': CONSONANTS,
-    'alpha': ALPHA,
-    'alphanum': ALPHANUM}
+charsets_dict = {
+    CHARSET_CONSONANTS: constants.CONSONANTS,
+    CHARSET_ALPHA: constants.ALPHA,
+    CHARSET_ALPHANUM: constants.ALPHANUM}
 
 
 class GridSpec:
@@ -59,84 +111,18 @@ class GridSpec:
         self.n_columns = n_columns
 
         if not 0 < self.n_rows <= MAX_GRID_ROWS:
-            raise ValueError('Invalid Number of Grid Rows: Must be > 0 and < {}.'.format(MAX_GRID_ROWS))
+            raise ValueError('Invalid Number of CharacterGrid Rows: Must be > 0 and < {}.'.format(MAX_GRID_ROWS))
 
         if not 0 < self.n_columns <= MAX_GRID_COLUMNS:
-            raise ValueError('Invalid Number of Grid Columns: Must be > 0 and < {}.'.format(MAX_GRID_COLUMNS))
+            raise ValueError('Invalid Number of CharacterGrid Columns: Must be > 0 and < {}.'.format(MAX_GRID_COLUMNS))
 
         try:
-            self.charset = SUPPORTED_CHARSETS_DICT[charset_id]
+            self.charset = charsets_dict[charset_id]
         except KeyError:
             raise ValueError(
-                'Invalid Grid Character Set: Must be one of {}'.format(','.join(
-                    sorted(SUPPORTED_CHARSETS_DICT.keys()))))
+                'Invalid CharacterGrid Character Set: Must be one of {}'.format(','.join(
+                    sorted(charsets_dict.keys()))))
 
     def create_grid(self):
         chars = random.sample(self.charset, k=self.n_rows * self.n_columns)
         return [chars[i * self.n_columns:(i + 1) * self.n_columns] for i in range(self.n_rows)]
-
-
-class Experiment1(Experiment):
-
-    def __init__(self, config):
-        super().__init__(config)
-
-        self.grid_spec = None
-
-    def _load_specific(self, config):
-        print("Processing experiment specific config")
-
-        grid = config['grid']
-        self.grid_spec = GridSpec(n_rows=grid['n_rows'],
-                                  n_columns=grid['n_columns'],
-                                  charset_id=grid['charset'])
-
-
-def no_op():
-    pass
-
-
-class DisplayItem(object):
-    def __init__(self, render, pre=no_op, post=no_op, interrupt_after=None):
-        self.render = render
-        self.pre = pre
-        self.post = post
-        self.interrupt_after = interrupt_after
-
-        self._validate()
-
-    def _validate(self):
-        if not callable(self.render):
-            raise ValueError('render must be a callable')
-
-        if self.pre and not callable(self.pre):
-            raise ValueError('pre, if defined, must be a callable')
-
-        if self.post and not callable(self.post):
-            raise ValueError('post, if defined, must be a callable')
-
-        if self.interrupt_after and self.interrupt_after <= 0:
-            raise ValueError('interrupt_after, if defined, must be positive: received {}'.format(self.interrupt_after))
-
-
-class SerialDisplayer(object):
-    def __init__(self, items):
-        self.items = items
-
-        self._validate()
-
-    def _validate(self):
-        # Check that items is iterable
-        iter(self.items)
-
-        # Check that items not empty
-        if not self.items:
-            raise ValueError('items must not be empty')
-
-        # Check that all items are of DisplayItem type
-        for item in self.items:
-            if not isinstance(item, DisplayItem):
-                raise TypeError('item of invalid type: {}'.format(type(item)))
-
-    def __len__(self):
-        return len(self.items)

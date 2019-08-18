@@ -1,50 +1,20 @@
-import experiments
 import pygame
-import sys
-import time
+import experiments
+
+from experiments.experiment1 import Experiment
 
 pygame.init()
 
-size = 800, 600
+screen = pygame.display.set_mode((1024, 768))
+font = pygame.font.SysFont("courier", size=72)
 
-BLACK = 0, 0, 0
-RED = 255, 0, 0
-GREEN = 0, 255, 0
-BLUE = 0, 0, 255
+experiment = Experiment(
+    screen=screen,
+    font=font,
+    stimulus_spec=experiments.GridSpec(n_rows=3, n_columns=4, charset_id=experiments.CHARSET_CONSONANTS),
+    durations={experiments.experiment1.FIXATION: 1000})
 
-screen = pygame.display.set_mode(size)
-
-
-def fill_black():
-    screen.fill(BLACK)
-    pygame.display.flip()
-
-
-def fill_red():
-    screen.fill(RED)
-    pygame.display.flip()
-
-
-def fill_blue():
-    screen.fill(BLUE)
-    pygame.display.flip()
-
-
-def wait_two():
-    time.sleep(2)
-
-
-trial = experiments.SerialTrial(
-    [
-        experiments.TrialItem(render=fill_black, post=wait_two),
-        experiments.TrialItem(render=fill_red, post=wait_two),
-        experiments.TrialItem(render=fill_blue, post=wait_two),
-    ]
-)
-
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT: sys.exit()
-
-    trial.run()
-# Save results
+try:
+    total_elapsed_time = experiment.run()
+except Exception as exc:
+    print('Unexpected exception: {}', exc)
