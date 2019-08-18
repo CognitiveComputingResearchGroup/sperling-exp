@@ -12,9 +12,11 @@ experiment = Experiment(
     screen=screen,
     font=font,
     stimulus_spec=experiments.GridSpec(n_rows=3, n_columns=4, charset_id=experiments.CHARSET_CONSONANTS),
-    duration_overrides={experiments.experiment1.FIXATION: 1000})
+    duration_overrides={})
 
 try:
     total_elapsed_time = experiment.run()
 except Exception as exc:
-    print('Unexpected exception: {}', exc)
+    print(exc)
+
+# TODO: Stats

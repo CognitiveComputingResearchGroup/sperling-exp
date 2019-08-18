@@ -46,7 +46,8 @@ class Experiment(object):
 
         self._trial_items[FIXATION] = experiments.TrialItem(
             renderer=experiments.view.SpriteRenderer(screen, crosshairs),
-            event_processor=experiments.view.WaitUntilKeyHandler(pygame.K_RETURN))
+            event_processor=experiments.view.WaitUntilKeyHandler(pygame.K_RETURN),
+            duration=self.durations[FIXATION])
 
         # 2 - pre-stimulus mask
         self._trial_items[POST_FIXATION_MASK] = experiments.TrialItem(
@@ -69,7 +70,7 @@ class Experiment(object):
         # TODO:
 
         # 6 = response grid (advance on ENTER)
-        response_grid = [['?'] * 4, ]
+        response_grid = [['?'] * len(stimulus_grid[0]), ]
         response_renderer = experiments.view.GridRenderer(
             screen=screen, grid=response_grid, font=font, padding=experiments.datatypes.Dimensions(50, 50))
         response_event_processor = experiments.view.GridEventHandler(

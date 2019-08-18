@@ -40,7 +40,7 @@ class SerialTrialRunner(object):
 
                 # Global termination events
                 if view.is_terminal_event(event):
-                    return elapsed_time
+                    raise InterruptedError('User terminated experiment')
 
                 # Item specific event processing
                 terminal_event = item.process_event(event)
