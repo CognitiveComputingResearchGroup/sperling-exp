@@ -12,7 +12,7 @@ experiment = Experiment(
     screen=screen,
     font=font,
     stimulus_spec=experiments.GridSpec(n_rows=3, n_columns=4, charset_id=experiments.CHARSET_CONSONANTS),
-    durations={experiments.experiment1.FIXATION: 1000})
+    duration_overrides={experiments.experiment1.FIXATION: 1000})
 
 try:
     total_elapsed_time = experiment.run()

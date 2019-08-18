@@ -1,9 +1,9 @@
 import unittest
 import experiments
-import experiments.pygame
 import pygame
 
 pygame.init()
+screen = pygame.display.set_mode((32, 24))
 
 
 class TestPygameGrid(unittest.TestCase):
@@ -12,20 +12,22 @@ class TestPygameGrid(unittest.TestCase):
         font = pygame.font.SysFont("courier", size=100)
         width, height = (800, 600)
         pos = (250, 250)
+        grid_values = grid_spec.create_grid()
 
         try:
-            grid = experiments.pygame.CharacterGrid(grid_spec=grid_spec, width=width, height=height, pos=pos, font=font)
+            char_grid = experiments.view.CharacterGrid(grid=grid_values, screen=screen,
+                                                       width=width, height=height, pos=pos, font=font)
 
             # Check internal state after initializer assignments
-            self.assertIs(grid.grid_spec, grid_spec)
-            self.assertEqual(grid.width, width)
-            self.assertEqual(grid.height, height)
-            self.assertEqual(grid.pos, pos)
-            self.assertIs(grid.font, font)
-            self.assertEqual(grid._char_dims, font.size('A'))
+            self.assertIs(char_grid.grid, grid_values)
+            self.assertEqual(char_grid.width, width)
+            self.assertEqual(char_grid.height, height)
+            self.assertEqual(char_grid.pos, pos)
+            self.assertIs(char_grid.font, font)
+            self.assertEqual(char_grid._char_dims, font.size('A'))
 
             # Verify one sprite per character in grid spec
-            self.assertEqual(len(grid.sprite_group), grid_spec.n_rows * grid_spec.n_columns)
+            self.assertEqual(len(char_grid.sprite_group), grid_spec.n_rows * grid_spec.n_columns)
 
         except Exception as exc:
             self.fail('Unexpected exception: {}'.format(exc))

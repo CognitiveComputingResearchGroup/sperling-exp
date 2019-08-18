@@ -23,16 +23,16 @@ DEFAULT_DURATIONS = {
 
 
 class Experiment(object):
-    def __init__(self, screen, font, stimulus_spec, durations):
+    def __init__(self, screen, font, stimulus_spec, duration_overrides):
         """
         :param screen (pygame.Surface):
         :param font (pygame.font.SysFont):
         :param stimulus_spec (GridSpec):
-        :param durations (dict)
+        :param duration_overrides (dict):
         """
         self.durations = collections.defaultdict(int)
         self.durations.update(DEFAULT_DURATIONS)
-        self.durations.update(durations)
+        self.durations.update(duration_overrides)
 
         screen_dims = experiments.datatypes.Dimensions(*screen.get_size())
         crosshairs = experiments.view.CrossHairs(
