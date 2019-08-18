@@ -6,7 +6,6 @@ import pygame
 import experiments.constants
 import experiments.datatypes
 import experiments.functions
-import experiments.model
 import experiments.view
 
 
