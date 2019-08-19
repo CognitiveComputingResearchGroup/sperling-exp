@@ -6,7 +6,10 @@ from experiments.experiment1 import Experiment
 pygame.init()
 
 screen = pygame.display.set_mode((1024, 768), flags=pygame.FULLSCREEN)
-font = pygame.font.SysFont("courier", size=72)
+font = pygame.font.SysFont("courier", size=40)
+
+# hide mouse cursor
+pygame.mouse.set_visible(False)
 
 experiment = Experiment(
     screen=screen,
@@ -17,7 +20,7 @@ experiment = Experiment(
 try:
     while True:
         total_elapsed_time = experiment.run()
-except Exception as exc:
+except InterruptedError as exc:
     print(exc)
 
 # TODO: Stats
