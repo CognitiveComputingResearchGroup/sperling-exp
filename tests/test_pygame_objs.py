@@ -15,14 +15,10 @@ class TestPygameGrid(unittest.TestCase):
         grid_values = grid_spec.create_grid()
 
         try:
-            char_grid = experiments.view.CharacterGrid(grid=grid_values, screen=screen,
-                                                       width=width, height=height, pos=pos, font=font)
+            char_grid = experiments.view.CharacterGrid(grid=grid_values, screen=screen, font=font)
 
             # Check internal state after initializer assignments
             self.assertIs(char_grid.grid, grid_values)
-            self.assertEqual(char_grid.width, width)
-            self.assertEqual(char_grid.height, height)
-            self.assertEqual(char_grid.pos, pos)
             self.assertIs(char_grid.font, font)
             self.assertEqual(char_grid._char_dims, font.size('A'))
 

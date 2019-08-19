@@ -94,9 +94,6 @@ class TrialItem(object):
         return self.event_processor(event)
 
 
-MAX_GRID_ROWS = 5
-MAX_GRID_COLUMNS = 5
-
 CHARSET_ALPHANUM = 'alphanum'
 CHARSET_ALPHA = 'alpha'
 CHARSET_CONSONANTS = 'consonants'
@@ -112,11 +109,11 @@ class GridSpec:
         self.n_rows = n_rows
         self.n_columns = n_columns
 
-        if not 0 < self.n_rows <= MAX_GRID_ROWS:
-            raise ValueError('Invalid Number of CharacterGrid Rows: Must be > 0 and < {}.'.format(MAX_GRID_ROWS))
+        if self.n_rows <= 0:
+            raise ValueError('Invalid Number of CharacterGrid Rows: Must be > 0.')
 
-        if not 0 < self.n_columns <= MAX_GRID_COLUMNS:
-            raise ValueError('Invalid Number of CharacterGrid Columns: Must be > 0 and < {}.'.format(MAX_GRID_COLUMNS))
+        if self.n_columns <= 0:
+            raise ValueError('Invalid Number of CharacterGrid Columns: Must be > 0.')
 
         try:
             self.charset = charsets_dict[charset_id]
