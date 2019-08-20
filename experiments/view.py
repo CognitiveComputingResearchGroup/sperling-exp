@@ -291,11 +291,17 @@ class GridEventHandler(WaitUntilKeyHandler):
             # process characters in charset
             if event.key in key_dict:
                 self.grid[self.pos[0]][self.pos[1]] = key_dict[event.key]
+                self.pos[1] = (self.pos[1] + 1) % self.n_cols
                 self.view.refresh()
 
             # question mark
             elif event.key == pygame.K_SLASH and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                 self.grid[self.pos[0]][self.pos[1]] = '?'
+                self.view.refresh()
+
+            elif event.key == pygame.K_BACKSPACE:
+                self.grid[self.pos[0]][self.pos[1] - 1] = '?'
+                self.pos[1] = (self.pos[1] - 1) % self.n_cols
                 self.view.refresh()
 
             # move grid position
