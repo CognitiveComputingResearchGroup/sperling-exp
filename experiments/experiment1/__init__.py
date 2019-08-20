@@ -2,6 +2,7 @@ import random
 import pygame
 import collections
 import experiments
+from experiments.view import CharacterGridWithArrowCues
 
 FIXATION = 'FIXATION'
 POST_FIXATION_MASK = 'POST_FIXATION_MASK'
@@ -16,10 +17,10 @@ FEEDBACK = 'FEEDBACK'
 DEFAULT_DURATIONS = {
     FIXATION: experiments.constants.UNLIMITED_DURATION,
     POST_FIXATION_MASK: 5000,
-    STIMULUS: 500,
-    POST_STIMULUS_MASK: 100,
+    STIMULUS: 100,
+    POST_STIMULUS_MASK: 1,
     CUE: 500,
-    POST_CUE_MASK: 0,
+    POST_CUE_MASK: 1,
     RESPONSE: experiments.constants.UNLIMITED_DURATION,
     FEEDBACK: experiments.constants.UNLIMITED_DURATION
 }
@@ -87,7 +88,17 @@ class Experiment(object):
         # 5 - cue
         self.cue_index = random.randint(0, len(self.stimulus_grid) - 1)
 
-        # TODO:
+        arrow_grid = CharacterGridWithArrowCues(char_grid, cue_row=self.cue_index)
+
+        x = (screen_dims.width - arrow_grid.image.get_width()) // 2
+        y = (screen_dims.height - arrow_grid.image.get_height()) // 2
+
+        cue_renderer = experiments.view.GridRenderer(surface=self.screen, grid=arrow_grid, pos=(x, y))
+
+        self._trial_items[CUE] = experiments.TrialItem(
+            renderer=cue_renderer,
+            event_processor=experiments.view.WaitUntilKeyHandler(pygame.K_RETURN),
+            duration=self.durations[CUE])
 
         # 6 = response grid (advance on ENTER)
         self.response_grid = [['?'] * len(self.stimulus_grid[0])]
@@ -97,7 +108,7 @@ class Experiment(object):
         x = (screen_dims.width - char_grid.image.get_width()) // 2
         y = (screen_dims.height - char_grid.image.get_height()) // 2
 
-        response_renderer = experiments.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x,y))
+        response_renderer = experiments.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x, y))
         response_event_processor = experiments.view.GridEventHandler(
             grid=self.response_grid, view=response_renderer, terminal_event=pygame.K_RETURN)
 
@@ -105,7 +116,6 @@ class Experiment(object):
             renderer=response_renderer, event_processor=response_event_processor, duration=self.durations[RESPONSE])
 
         # 7 = feedback grid (advance on ENTER)
-        print('cue: ', self.cue_index)
         correct_response = [self.stimulus_grid[self.cue_index]]
 
         feedback_renderer = experiments.view.FeedbackGridRenderer(

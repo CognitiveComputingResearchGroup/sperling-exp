@@ -75,74 +75,67 @@ class Character(pygame.sprite.Sprite):
 
 
 class CharacterGridWithArrowCues(pygame.sprite.Sprite):
-    def __init__(self, screen, char_grid, bg_color):
+    def __init__(self, grid, cue_row, grid_visible=False):
+        """
+
+        :param grid (CharacterGrid): a 2d character grid
+        :param cue_row (int): the row that is currently being cued (0-offset)
+        """
         super().__init__()
 
-        self.screen = screen
-        self.char_grid = char_grid
-        self.bg_color = bg_color
+        self.grid = grid
+        self.cue_row = cue_row
+        self.grid_visible = grid_visible
 
-        self._arrow_dims = Dimensions(50, 20)
-        self._grid_dims = Dimensions(width=self.char_grid.image.get_width() + self._arrow_dims.width,
-                                     height=self.char_grid.image.get_height())
+        self._x_arrow_spacer, self._y_arrow_spacer = (10, 10)
+
+        self._arrow_dims = Dimensions(50, 25)
+        self._grid_dims = self._get_grid_dims()
 
         self.image = pygame.Surface(self._grid_dims)
-        # self.image.set_colorkey(self.bg_color)
-
         self.rect = self.image.get_rect()
 
-        self._x_margin, self._y_margin = (10, 10)
-        self._x_arrow_spacer, self._y_arrow_spacer = (15, 15)
+        self.sprites_group = pygame.sprite.RenderPlain()
+        self.sprites_group.add(self._create_sprites())
 
-        self._sprite_group = pygame.sprite.Group()
-        self._sprite_group.add(self._create_sprites())
+    def _get_grid_dims(self):
+        width = self._x_arrow_spacer + self._arrow_dims.width + self.grid._grid_dims.width
+
+        # column arrow cues not supported yet, so this is just the grid height
+        height = self.grid._grid_dims.height
+
+        return width, height
+
+    def update(self):
+        self.image.fill(experiments.constants.BLACK)
+
+        self.grid.update()
+        self.grid.rect.topleft = (self._arrow_dims.width, 0)
+
+        if self.grid_visible:
+            self.image.blit(self.grid.image, self.grid.rect)
+
+        self.sprites_group.update()
+        self.sprites_group.draw(self.image)
 
     def _create_sprites(self):
         sprites = []
 
-        for i in range(self.char_grid.n_rows):
+        spacer_height = (self.grid._char_dims.height - self._arrow_dims.height) // 2
+
+        for i in range(self.grid.n_rows):
             arrow_pos = (
-                self._x_margin,
-                i * (self._arrow_dims.height + self._y_arrow_spacer) + self._y_margin
-            )
-            arrow_sprite = ArrowCue(self.screen,
-                                    Dimensions(width=self._arrow_dims.width, height=self._arrow_dims.height),
-                                    color=experiments.constants.GRAY)
-            arrow_sprite.rect.topleft = arrow_pos
-            sprites.append(arrow_sprite)
+                    0,
+                    spacer_height + i * (self.grid._char_dims.height + self.grid._y_char_spacer) + self.grid._y_margin
+                )
+
+            sprite = ArrowCue(self._arrow_dims,
+                              color=experiments.constants.GREEN if i == self.cue_row else experiments.constants.GRAY)
+            sprite.rect.topleft = arrow_pos
+
+            sprites.append(sprite)
 
         return sprites
-
-    def _get_position(self):
-        screen_width, screen_height = self.screen.get_size()
-
-        x = (screen_width - self._grid_dims.width) // 2
-        y = (screen_height - self._grid_dims.height) // 2
-
-        return x, y
-
-    def draw(self, *args):
-        # Clear previously rendered letters from surface
-        self.image.fill(experiments.constants.RED)
-
-        for sprite in self._sprite_group:
-            self.image.blit(sprite.image, sprite.pos)
-
-        self.char_grid.draw()
-
-        # Draw all sprites onto grid surface
-        self._sprite_group.draw(self.image)
-
-        # Draw grid surface onto enclosing surface
-        self.screen.blit(self.image, self._get_position())
-
-    def update(self):
-        self._sprite_group.update()
-        # self.char_grid.update()
-
-    def refresh(self):
-        self._sprite_group = pygame.sprite.Group()
-        self._sprite_group.add(self._create_sprites())
 
 
 class CharacterGrid(pygame.sprite.Sprite):
@@ -171,7 +164,8 @@ class CharacterGrid(pygame.sprite.Sprite):
         self._sprite_group.add(self._create_sprites())
 
     def _get_grid_dims(self):
-        width = 2 * self._x_margin + (self.n_columns - 1) * self._x_char_spacer + self.n_columns * self._char_dims.width
+        width = 2 * self._x_margin + (
+                self.n_columns - 1) * self._x_char_spacer + self.n_columns * self._char_dims.width
         height = 2 * self._y_margin + (self.n_rows - 1) * self._y_char_spacer + self.n_rows * self._char_dims.height
 
         return Dimensions(width, height)
