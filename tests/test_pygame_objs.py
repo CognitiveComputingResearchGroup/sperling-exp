@@ -23,7 +23,7 @@ class TestPygameGrid(unittest.TestCase):
             self.assertEqual(char_grid._char_dims, font.size('A'))
 
             # Verify one sprite per character in grid spec
-            self.assertEqual(len(char_grid.sprite_group), grid_spec.n_rows * grid_spec.n_columns)
+            self.assertEqual(len(char_grid._sprite_group), grid_spec.n_rows * grid_spec.n_columns)
 
         except Exception as exc:
             self.fail('Unexpected exception: {}'.format(exc))

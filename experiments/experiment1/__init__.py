@@ -41,16 +41,21 @@ class Experiment(object):
         self.durations.update(duration_overrides)
 
     def _setup(self):
+        # clear display
+        self.screen.fill(experiments.constants.BLACK)
+
         screen_dims = experiments.datatypes.Dimensions(*self.screen.get_size())
 
         self._trial_items = collections.OrderedDict()
 
         # 1 - fixation period on crosshairs (advance on ENTER)
+        crosshair_width = 100
         crosshairs = experiments.view.CrossHairs(
-            screen=self.screen,
-            pos=(screen_dims.width // 2, screen_dims.height // 2),
-            width=100,
+            size=crosshair_width,
             color=experiments.constants.WHITE)
+
+        crosshairs.rect.x = (screen_dims.width - crosshair_width) // 2
+        crosshairs.rect.y = (screen_dims.height - crosshair_width) // 2
 
         self._trial_items[FIXATION] = experiments.TrialItem(
             renderer=experiments.view.SpriteRenderer(self.screen, crosshairs),
@@ -64,9 +69,14 @@ class Experiment(object):
 
         # 3 - grid stimulus
         self.stimulus_grid = self.stimulus_spec.create_grid()
+
+        char_grid = experiments.view.CharacterGrid(grid=self.stimulus_grid, font=self.font)
+
+        x = (screen_dims.width - char_grid.image.get_width()) // 2
+        y = (screen_dims.height - char_grid.image.get_height()) // 2
+
         self._trial_items[STIMULUS] = experiments.TrialItem(
-            renderer=experiments.view.GridRenderer(self.screen, grid=self.stimulus_grid, font=self.font,
-                                                   padding=experiments.datatypes.Dimensions(50, 50)),
+            renderer=experiments.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x, y)),
             duration=self.durations[STIMULUS])
 
         # 4 = post-stimulus mask
@@ -80,10 +90,14 @@ class Experiment(object):
         # TODO:
 
         # 6 = response grid (advance on ENTER)
-        self.response_grid = [['?'] * len(self.stimulus_grid[0]), ]
-        response_renderer = experiments.view.GridRenderer(
-            screen=self.screen, grid=self.response_grid, font=self.font,
-            padding=experiments.datatypes.Dimensions(50, 50))
+        self.response_grid = [['?'] * len(self.stimulus_grid[0])]
+
+        char_grid = experiments.view.CharacterGrid(grid=self.response_grid, font=self.font)
+
+        x = (screen_dims.width - char_grid.image.get_width()) // 2
+        y = (screen_dims.height - char_grid.image.get_height()) // 2
+
+        response_renderer = experiments.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x,y))
         response_event_processor = experiments.view.GridEventHandler(
             grid=self.response_grid, view=response_renderer, terminal_event=pygame.K_RETURN)
 
@@ -92,11 +106,10 @@ class Experiment(object):
 
         # 7 = feedback grid (advance on ENTER)
         print('cue: ', self.cue_index)
+        correct_response = [self.stimulus_grid[self.cue_index]]
 
         feedback_renderer = experiments.view.FeedbackGridRenderer(
-            screen=self.screen, correct_response=[self.stimulus_grid[self.cue_index]],
-            actual_response=self.response_grid,
-            font=self.font, padding=experiments.datatypes.Dimensions(50, 50))
+            surface=self.screen, grid=char_grid, correct_response=correct_response, actual_response=self.response_grid)
 
         self._trial_items[FEEDBACK] = experiments.TrialItem(
             renderer=feedback_renderer,
@@ -110,6 +123,6 @@ class Experiment(object):
             trial=self._trial_items.values(),
             clock=pygame.time.Clock(),
             surface=self.screen,
-            fps=20)
+            fps=fps)
 
         return runner.run()

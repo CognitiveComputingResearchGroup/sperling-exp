@@ -16,52 +16,43 @@ def terminate():
 
 
 class ArrowCue(pygame.sprite.Sprite):
-    def __init__(self, screen, width, height, color, bg_color=experiments.constants.BLACK):
+    def __init__(self, dims, color):
         super().__init__()
 
-        self.screen = screen
-        self.width = width
-        self.height = height
         self.color = color
-        self.bg_color = bg_color
 
-        self.image = pygame.Surface([width, height])
+        self.image = pygame.Surface(dims)
+        self.rect = self.image.get_rect()
+
+    def update(self):
+        width, height = self.image.get_size()
+        pygame.draw.polygon(self.image, self.color,
+                            [(0, height // 4), (width - 10, height // 4), (width - 10, 0), (width, height // 2),
+                             (width - 10, height), (width - 10, 3 * height // 4), (0, 3 * height // 4)])
+
+
+class CrossHairs(pygame.sprite.Sprite):
+    def __init__(self, size, color):
+        """A sprite for crosshairs
+
+        :param size (int): width and height (in pixels) of crosshairs
+        :param color (3-tuple): foreground color of crosshairs
+        """
+        super().__init__()
+
+        self.size = size
+        self.color = color
+
+        self.image = pygame.Surface([size, size])
         self.image.set_colorkey(experiments.constants.BLACK)
 
         self.rect = self.image.get_rect()
 
-    def draw(self):
-        self.image.fill(self.bg_color)
-
-        pygame.draw.polygon(self.image, self.color,
-                            [(0, self.height // 4), (self.width - 10, self.height // 4),
-                             (self.width - 10, 0), (self.width, self.height // 2),
-                             (self.width - 10, self.height), (self.width - 10, 3 * self.height // 4),
-                             (0, 3 * self.height // 4)])
-
-
-class CrossHairs(pygame.sprite.Sprite):
-    def __init__(self, screen, pos, width, color):
-        super().__init__()
-
-        self.screen = screen
-        self.pos = pos
-        self.width = width
-        self.color = color
-
-        self.image = pygame.Surface([width, width])
-        self.image.set_colorkey((0, 0, 0))
-
-        self.rect = self.image.get_rect()
-        self.rect.x = pos[0] - width // 2
-        self.rect.y = pos[1] - width // 2
-
     def update(self):
-        self.screen.fill(experiments.constants.BLACK)
-        self.image.fill((0, 0, 0))
+        self.image.fill(experiments.constants.BLACK)
 
-        pygame.draw.line(self.image, self.color, (0, self.width // 2), (self.width, self.width // 2), 5)
-        pygame.draw.line(self.image, self.color, (self.width // 2, 0), (self.width // 2, self.width), 5)
+        pygame.draw.line(self.image, self.color, (0, self.size // 2), (self.size, self.size // 2), 5)
+        pygame.draw.line(self.image, self.color, (self.size // 2, 0), (self.size // 2, self.size), 5)
 
 
 class Character(pygame.sprite.Sprite):
@@ -73,40 +64,54 @@ class Character(pygame.sprite.Sprite):
         self.font = font
         self.color = color
 
-        self.update()
+        self.image = self.font.render(self.char, 1, self.color)
+        self.rect = self.image.get_rect()
 
     def update(self):
         self.image = self.font.render(self.char, 1, self.color)
         self.rect = self.image.get_rect()
 
-        width, height = self.font.size(self.char)
         self.rect.x, self.rect.y = self.pos
 
 
-class CharacterGrid:
-    def __init__(self, screen, grid, font, color_grid=None, bg_color=experiments.constants.BLACK):
+class CharacterGridWithArrowCues(pygame.sprite.Sprite):
+    def __init__(self, screen, char_grid, bg_color):
         super().__init__()
 
         self.screen = screen
-        self.grid = grid
-        self.n_rows = len(grid)
-        self.n_columns = len(grid[0])
-
-        self.font = font
-        self.color_grid = color_grid or [[experiments.constants.WHITE] * self.n_columns for _ in range(self.n_rows)]
+        self.char_grid = char_grid
         self.bg_color = bg_color
 
+        self._arrow_dims = Dimensions(50, 20)
+        self._grid_dims = Dimensions(width=self.char_grid.image.get_width() + self._arrow_dims.width,
+                                     height=self.char_grid.image.get_height())
+
+        self.image = pygame.Surface(self._grid_dims)
+        # self.image.set_colorkey(self.bg_color)
+
+        self.rect = self.image.get_rect()
+
         self._x_margin, self._y_margin = (10, 10)
-        self._x_char_spacer, self._y_char_spacer = (10, 10)
-        self._char_dims = Dimensions(*self.font.size('A'))  # Assumes fixed-width font
-        self._grid_dims = self._get_grid_dims()
-        self._position = self._get_position()
+        self._x_arrow_spacer, self._y_arrow_spacer = (15, 15)
 
-        # Pygame Surfaces and Sprites
-        self.grid_surface = pygame.Surface(self._grid_dims)
+        self._sprite_group = pygame.sprite.Group()
+        self._sprite_group.add(self._create_sprites())
 
-        self.sprite_group = pygame.sprite.Group()
-        self.sprite_group.add(self._create_sprites())
+    def _create_sprites(self):
+        sprites = []
+
+        for i in range(self.char_grid.n_rows):
+            arrow_pos = (
+                self._x_margin,
+                i * (self._arrow_dims.height + self._y_arrow_spacer) + self._y_margin
+            )
+            arrow_sprite = ArrowCue(self.screen,
+                                    Dimensions(width=self._arrow_dims.width, height=self._arrow_dims.height),
+                                    color=experiments.constants.GRAY)
+            arrow_sprite.rect.topleft = arrow_pos
+            sprites.append(arrow_sprite)
+
+        return sprites
 
     def _get_position(self):
         screen_width, screen_height = self.screen.get_size()
@@ -116,6 +121,55 @@ class CharacterGrid:
 
         return x, y
 
+    def draw(self, *args):
+        # Clear previously rendered letters from surface
+        self.image.fill(experiments.constants.RED)
+
+        for sprite in self._sprite_group:
+            self.image.blit(sprite.image, sprite.pos)
+
+        self.char_grid.draw()
+
+        # Draw all sprites onto grid surface
+        self._sprite_group.draw(self.image)
+
+        # Draw grid surface onto enclosing surface
+        self.screen.blit(self.image, self._get_position())
+
+    def update(self):
+        self._sprite_group.update()
+        # self.char_grid.update()
+
+    def refresh(self):
+        self._sprite_group = pygame.sprite.Group()
+        self._sprite_group.add(self._create_sprites())
+
+
+class CharacterGrid(pygame.sprite.Sprite):
+    def __init__(self, grid, font, color_grid=None):
+        super().__init__()
+
+        self.grid = grid
+        self.n_rows = len(grid)
+        self.n_columns = len(grid[0])
+
+        self.font = font
+        self.color_grid = color_grid or [[experiments.constants.WHITE] * self.n_columns for _ in range(self.n_rows)]
+
+        self._x_margin, self._y_margin = (10, 10)
+        self._x_char_spacer, self._y_char_spacer = (10, 10)
+        self._char_dims = Dimensions(*self.font.size('A'))  # Assumes fixed-size font
+        self._grid_dims = self._get_grid_dims()
+
+        # Pygame Surfaces and Sprites
+        self.image = pygame.Surface(self._grid_dims)
+        self.image.set_colorkey(experiments.constants.BLACK)
+
+        self.rect = self.image.get_rect()
+
+        self._sprite_group = pygame.sprite.Group()
+        self._sprite_group.add(self._create_sprites())
+
     def _get_grid_dims(self):
         width = 2 * self._x_margin + (self.n_columns - 1) * self._x_char_spacer + self.n_columns * self._char_dims.width
         height = 2 * self._y_margin + (self.n_rows - 1) * self._y_char_spacer + self.n_rows * self._char_dims.height
@@ -124,64 +178,54 @@ class CharacterGrid:
 
     def _create_sprites(self):
         sprites = []
+
         for i, row in enumerate(self.grid):
+            # add characters
             for j, char in enumerate(row):
                 char_pos = (
                     j * (self._char_dims.width + self._x_char_spacer) + self._x_margin,
                     i * (self._char_dims.height + self._y_char_spacer) + self._y_margin
                 )
-                sprite = Character(char, pos=char_pos, font=self.font, color=self.color_grid[i][j])
-                sprites.append(sprite)
+                char_sprite = Character(char, pos=char_pos, font=self.font, color=self.color_grid[i][j])
+                sprites.append(char_sprite)
 
         return sprites
 
-    def draw(self, *args):
-        # Clear previously rendered letters from surface
-        self.grid_surface.fill(self.bg_color)
-
-        # Draw all sprites onto grid surface
-        self.sprite_group.draw(self.grid_surface)
-
-        # Draw grid surface onto enclosing surface
-        self.screen.blit(self.grid_surface, self._position)
-
     def update(self):
-        self.sprite_group.update()
+        self.image.fill(experiments.constants.BLACK)
+        self._sprite_group.update()
+        self._sprite_group.draw(self.image)
 
     def refresh(self):
-        self.sprite_group = pygame.sprite.Group()
-        self.sprite_group.add(self._create_sprites())
+        self._sprite_group = pygame.sprite.Group()
+        self._sprite_group.add(self._create_sprites())
 
 
 class GridRenderer:
-    def __init__(self, screen, grid, font, padding, color_grid=None):
-        self.screen = screen
+    def __init__(self, surface, pos, grid):
+        self.surface = surface
+        self.pos = pos
         self.grid = grid
-        self.font = font
-        self.padding = padding
-        self.color_grid = color_grid
-
-        self.char_grid = CharacterGrid(screen=screen, grid=grid, font=font, color_grid=color_grid)
 
     def __call__(self, *args, **kwargs):
-        self.char_grid.update()
-        self.char_grid.draw(self.screen)
+        # clear previously rendered letters
+        self.surface.fill(experiments.constants.BLACK)
+
+        self.grid.rect.topleft = self.pos
+        self.grid.update()
+
+        self.surface.blit(self.grid.image, self.grid.rect)
 
     def refresh(self):
-        self.char_grid.refresh()
+        self.grid.refresh()
 
 
 class FeedbackGridRenderer:
-    def __init__(self, screen, correct_response, actual_response, font, padding):
-        self.screen = screen
+    def __init__(self, surface, grid, correct_response, actual_response):
+        self.surface = surface
+        self.grid = grid
         self.correct_response = correct_response
         self.actual_response = actual_response
-        self.font = font
-        self.padding = padding
-
-        self.color_grid = [[experiments.constants.BLACK] * len(correct_response[0]) for _ in
-                           range(len(correct_response))]
-        self.char_grid = CharacterGrid(screen=screen, grid=actual_response, font=font, color_grid=self.color_grid)
 
     def __call__(self, *args, **kwargs):
         n_rows = len(self.correct_response)
@@ -189,12 +233,14 @@ class FeedbackGridRenderer:
 
         for i in range(n_rows):
             for j in range(n_cols):
-                self.color_grid[i][j] = self._color(self.correct_response[i][j], self.actual_response[i][j])
+                self.grid.color_grid[i][j] = self._color(self.correct_response[i][j], self.actual_response[i][j])
 
-        self.char_grid.update()
-        self.char_grid.draw(self.screen)
+        self.grid.image.fill(experiments.constants.BLACK)
+        self.grid.update()
 
-        self.char_grid.refresh()
+        self.surface.blit(self.grid.image, self.grid.rect)
+
+        self.grid.refresh()
 
     def _color(self, correct, actual):
         correct_color = experiments.constants.GREEN
