@@ -164,7 +164,7 @@ class TestGridSpec(TestCase):
                     self.assertIn(char, spec.charset)
 
             # Verify characters are unique
-            self.assertEqual(len(set([l for row in grid for l in row])), n_rows * n_columns)
+            self.assertEqual(sum(1 for row in grid for char in row), n_rows * n_columns)
 
         except Exception as exc:
             self.fail('Raised unexpected exception: {}'.format(exc))

@@ -15,7 +15,7 @@ class TestPygameGrid(unittest.TestCase):
         grid_values = grid_spec.create_grid()
 
         try:
-            char_grid = experiments.view.CharacterGrid(grid=grid_values, screen=screen, font=font)
+            char_grid = experiments.view.CharacterGrid(grid=grid_values, font=font)
 
             # Check internal state after initializer assignments
             self.assertIs(char_grid.grid, grid_values)
