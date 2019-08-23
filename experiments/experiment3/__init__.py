@@ -3,15 +3,26 @@ import pygame
 import collections
 import experiments
 from experiments.view import CharacterGridWithArrowCues
-import copy
+
+FIXATION = 'FIXATION'
+POST_FIXATION_MASK = 'POST_FIXATION_MASK'
+STIMULUS = 'STIMULUS'
+POST_STIMULUS_MASK = 'POST_STIMULUS_MASK'
+CUE = 'CUE'
+POST_CUE_MASK = 'POST_CUE_MASK'
+RESPONSE = 'RESPONSE'
+FEEDBACK = 'FEEDBACK'
 
 # In millis
 DEFAULT_DURATIONS = {
-    experiments.constants.FIXATION: experiments.constants.UNLIMITED_DURATION,
-    experiments.constants.POST_FIXATION_MASK: 500,
-    experiments.constants.STIMULUS: 50,
-    experiments.constants.RESPONSE: experiments.constants.UNLIMITED_DURATION,
-    experiments.constants.FEEDBACK: experiments.constants.UNLIMITED_DURATION
+    FIXATION: experiments.constants.UNLIMITED_DURATION,
+    POST_FIXATION_MASK: 500,
+    STIMULUS: 50,
+    POST_STIMULUS_MASK: 1,
+    CUE: 500,
+    POST_CUE_MASK: 1,
+    RESPONSE: experiments.constants.UNLIMITED_DURATION,
+    FEEDBACK: experiments.constants.UNLIMITED_DURATION
 }
 
 
@@ -29,7 +40,6 @@ class Experiment(object):
         self.durations = collections.defaultdict(int)
         self.durations.update(DEFAULT_DURATIONS)
         self.durations.update(duration_overrides)
-        self.results = []
 
     def _setup(self):
         # clear display
@@ -48,15 +58,15 @@ class Experiment(object):
         crosshairs.rect.x = (screen_dims.width - crosshair_width) // 2
         crosshairs.rect.y = (screen_dims.height - crosshair_width) // 2
 
-        self._trial_items[experiments.constants.FIXATION] = experiments.TrialItem(
+        self._trial_items[FIXATION] = experiments.TrialItem(
             renderer=experiments.view.SpriteRenderer(self.screen, crosshairs),
             event_processor=experiments.view.WaitUntilKeyHandler(pygame.K_RETURN),
-            duration=self.durations[experiments.constants.FIXATION])
+            duration=self.durations[FIXATION])
 
         # 2 - pre-stimulus mask
-        self._trial_items[experiments.constants.POST_FIXATION_MASK] = experiments.TrialItem(
+        self._trial_items[POST_FIXATION_MASK] = experiments.TrialItem(
             renderer=experiments.view.MaskRenderer(self.screen, color=experiments.constants.BLACK),
-            duration=self.durations[experiments.constants.POST_FIXATION_MASK])
+            duration=self.durations[POST_FIXATION_MASK])
 
         # 3 - grid stimulus
         self.stimulus_grid = self.stimulus_spec.create_grid()
@@ -66,12 +76,32 @@ class Experiment(object):
         x = (screen_dims.width - char_grid.image.get_width()) // 2
         y = (screen_dims.height - char_grid.image.get_height()) // 2
 
-        self._trial_items[experiments.constants.STIMULUS] = experiments.TrialItem(
+        self._trial_items[STIMULUS] = experiments.TrialItem(
             renderer=experiments.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x, y)),
-            duration=self.durations[experiments.constants.STIMULUS])
+            duration=self.durations[STIMULUS])
 
-        # 4 = response grid (advance on ENTER)
-        self.response_grid = [['?'] * len(self.stimulus_grid[0]) for row in range(len(self.stimulus_grid))]
+        # 4 = post-stimulus mask
+        self._trial_items[POST_STIMULUS_MASK] = experiments.TrialItem(
+            renderer=experiments.view.MaskRenderer(self.screen, color=experiments.constants.BLACK),
+            duration=self.durations[POST_STIMULUS_MASK])
+
+        # 5 - cue
+        self.cue_index = random.randint(0, len(self.stimulus_grid) - 1)
+
+        arrow_grid = CharacterGridWithArrowCues(char_grid, cue_row=self.cue_index)
+
+        x = (screen_dims.width - arrow_grid.image.get_width()) // 2
+        y = (screen_dims.height - arrow_grid.image.get_height()) // 2
+
+        cue_renderer = experiments.view.GridRenderer(surface=self.screen, grid=arrow_grid, pos=(x, y))
+
+        self._trial_items[CUE] = experiments.TrialItem(
+            renderer=cue_renderer,
+            event_processor=experiments.view.WaitUntilKeyHandler(pygame.K_RETURN),
+            duration=self.durations[CUE])
+
+        # 6 = response grid (advance on ENTER)
+        self.response_grid = [['?'] * len(self.stimulus_grid[0])]
 
         char_grid = experiments.view.CharacterGrid(grid=self.response_grid, font=self.font)
 
@@ -81,22 +111,20 @@ class Experiment(object):
         response_renderer = experiments.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x, y))
         response_event_processor = experiments.view.GridEventHandler(
             grid=char_grid, view=response_renderer, terminal_event=pygame.K_RETURN)
-        response_post_processor = experiments.ResponseStatsProcessor(self.stimulus_grid, self.response_grid,
-                                                                     self.results)
 
-        self._trial_items[experiments.constants.RESPONSE] = experiments.TrialItem(
-            renderer=response_renderer, event_processor=response_event_processor, post=response_post_processor,
-            duration=self.durations[experiments.constants.RESPONSE])
+        self._trial_items[RESPONSE] = experiments.TrialItem(
+            renderer=response_renderer, event_processor=response_event_processor, duration=self.durations[RESPONSE])
 
-        # 5 = feedback grid (advance on ENTER)
+        # 7 = feedback grid (advance on ENTER)
+        correct_response = [self.stimulus_grid[self.cue_index]]
+
         feedback_renderer = experiments.view.FeedbackGridRenderer(
-            surface=self.screen, grid=char_grid, correct_response=self.stimulus_grid,
-            actual_response=self.response_grid)
+            surface=self.screen, grid=char_grid, correct_response=correct_response, actual_response=self.response_grid)
 
-        self._trial_items[experiments.constants.FEEDBACK] = experiments.TrialItem(
+        self._trial_items[FEEDBACK] = experiments.TrialItem(
             renderer=feedback_renderer,
             event_processor=experiments.view.WaitUntilKeyHandler(pygame.K_RETURN),
-            duration=self.durations[experiments.constants.FEEDBACK])
+            duration=self.durations[FEEDBACK])
 
     def run(self, fps=20):
         self._setup()

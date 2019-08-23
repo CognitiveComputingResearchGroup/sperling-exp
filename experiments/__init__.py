@@ -1,6 +1,6 @@
 import collections
 import random
-
+import copy
 import pygame
 
 import experiments.constants
@@ -19,22 +19,21 @@ class SerialTrialRunner(object):
         self.fps = fps
 
     def run(self):
-        total_elapsed_time = 0
+        elapsed_time = 0
         for item in self.trial:
-            total_elapsed_time += self.execute_item(item, self)
+            item.pre()
+            time = self.execute_item(item, self)
+            elapsed_time += time
+            item.post(time=time, elapsed_time=elapsed_time)
 
-        return total_elapsed_time
+        return elapsed_time
 
     @classmethod
     def execute_item(cls, item, runner):
         elapsed_time = 0
-
         terminal_event = False
+
         while not terminal_event and elapsed_time <= (item.duration or MAX_DURATION):
-
-            # Pre-render processing
-            item.pre()
-
             # Process Events
             for event in pygame.event.get():
 
@@ -50,9 +49,6 @@ class SerialTrialRunner(object):
             pygame.display.flip()
 
             elapsed_time += runner.clock.get_time()
-
-            # Pre-render processing
-            item.post()
 
             # Advance clock
             runner.clock.tick(runner.fps)
@@ -105,9 +101,10 @@ charsets_dict = {
 
 
 class GridSpec:
-    def __init__(self, n_rows, n_columns, charset_id):
+    def __init__(self, n_rows, n_columns, charset_id, allow_repeats=True):
         self.n_rows = n_rows
         self.n_columns = n_columns
+        self.allow_repeats = allow_repeats
 
         if self.n_rows <= 0:
             raise ValueError('Invalid Number of CharacterGrid Rows: Must be > 0.')
@@ -123,5 +120,24 @@ class GridSpec:
                     sorted(charsets_dict.keys()))))
 
     def create_grid(self):
-        chars = random.sample(self.charset, k=self.n_rows * self.n_columns)
+        chars = random.choices(list(self.charset), k=self.n_rows * self.n_columns) \
+            if self.allow_repeats else random.sample(self.charset, k=self.n_rows * self.n_columns)
         return [chars[i * self.n_columns:(i + 1) * self.n_columns] for i in range(self.n_rows)]
+
+
+ResponseEntry = collections.namedtuple('ResponseEntry', ['response_time', 'actual_response', 'correct_response'])
+
+
+class ResponseStatsProcessor(object):
+    def __init__(self, correct, actual, results):
+        self.correct = correct
+        self.actual = actual
+        self.results = results
+
+    def __call__(self, *args, **kwargs):
+        entry = ResponseEntry(
+            response_time=kwargs['time'],
+            actual_response=copy.deepcopy(self.actual),
+            correct_response=copy.deepcopy(self.correct)
+        )
+        self.results.append(entry)

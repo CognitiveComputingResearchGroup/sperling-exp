@@ -149,8 +149,8 @@ class CharacterGrid(pygame.sprite.Sprite):
         self.font = font
         self.color_grid = color_grid or [[experiments.constants.WHITE] * self.n_columns for _ in range(self.n_rows)]
 
-        self._x_margin, self._y_margin = (10, 10)
-        self._x_char_spacer, self._y_char_spacer = (10, 10)
+        self._x_margin, self._y_margin = (0, 0)
+        self._x_char_spacer, self._y_char_spacer = (5, 0)
         self._char_dims = Dimensions(*self.font.size('A'))  # Assumes fixed-size font
         self._grid_dims = self._get_grid_dims()
 
@@ -282,27 +282,30 @@ class GridEventHandler(WaitUntilKeyHandler):
 
         self.grid = grid
         self.view = view
-        self.n_rows, self.n_cols = len(self.grid), len(self.grid[0])
+        self.n_rows, self.n_cols = len(self.grid.grid), len(self.grid.grid[0])
         self.pos = [0, 0]
+
+        # Highlight character in current position
+        self.grid.color_grid[self.pos[0]][self.pos[1]] = experiments.constants.YELLOW
+        self.view.refresh()
 
     def __call__(self, event):
         if event.type == pygame.KEYDOWN:
 
+            prev_pos = self.pos[0], self.pos[1]
             # process characters in charset
             if event.key in key_dict:
-                self.grid[self.pos[0]][self.pos[1]] = key_dict[event.key]
+                self.grid.grid[self.pos[0]][self.pos[1]] = key_dict[event.key]
                 self.pos[1] = (self.pos[1] + 1) % self.n_cols
-                self.view.refresh()
 
             # question mark
             elif event.key == pygame.K_SLASH and pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                self.grid[self.pos[0]][self.pos[1]] = '?'
-                self.view.refresh()
+                self.grid.grid[self.pos[0]][self.pos[1]] = '?'
+                self.pos[1] = (self.pos[1] + 1) % self.n_cols
 
             elif event.key == pygame.K_BACKSPACE:
-                self.grid[self.pos[0]][self.pos[1] - 1] = '?'
+                self.grid.grid[self.pos[0]][self.pos[1] - 1] = '?'
                 self.pos[1] = (self.pos[1] - 1) % self.n_cols
-                self.view.refresh()
 
             # move grid position
             elif event.key == pygame.K_UP:
@@ -314,4 +317,8 @@ class GridEventHandler(WaitUntilKeyHandler):
             elif event.key == pygame.K_RIGHT:
                 self.pos[1] = (self.pos[1] + 1) % self.n_cols
 
+            self.grid.color_grid[prev_pos[0]][prev_pos[1]] = experiments.constants.WHITE
+            self.grid.color_grid[self.pos[0]][self.pos[1]] = experiments.constants.YELLOW
+
+            self.view.refresh()
         return super().__call__(event)
