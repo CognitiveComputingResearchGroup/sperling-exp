@@ -10,8 +10,6 @@ class TestPygameGrid(unittest.TestCase):
     def test_init(self):
         grid_spec = experiments.GridSpec(n_rows=3, n_columns=4, charset_id=experiments.CHARSET_CONSONANTS)
         font = pygame.font.SysFont("courier", size=100)
-        width, height = (800, 600)
-        pos = (250, 250)
         grid_values = grid_spec.create_grid()
 
         try:
