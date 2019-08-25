@@ -1,8 +1,11 @@
+import itertools
 from unittest import TestCase
 from unittest.mock import patch, MagicMock
 
-import experiments
+import sperling
 import pygame
+
+import sperling.constants
 
 pygame.init()
 screen = pygame.display.set_mode((32, 24))
@@ -12,7 +15,7 @@ class TestSerialTrialRunner(TestCase):
 
     def setUp(self):
         self._items = [
-            experiments.TrialItem(
+            sperling.TrialItem(
                 renderer=MagicMock(), event_processor=MagicMock(), pre=MagicMock(), post=MagicMock(), duration=50)
             for i in range(10)]
 
@@ -44,10 +47,10 @@ class TestSerialTrialRunner(TestCase):
             self.fail('Unexpected exception: {}'.format(exc))
 
     def _execute_basic_runner(self):
-        runner = experiments.SerialTrialRunner(trial=self._items,
-                                               clock=pygame.time.Clock(),
-                                               surface=screen,
-                                               fps=100)
+        runner = sperling.SerialTrialRunner(trial=self._items,
+                                            clock=pygame.time.Clock(),
+                                            surface=screen,
+                                            fps=100)
 
         total_elapsed_time = runner.run()
         return runner, total_elapsed_time
@@ -58,26 +61,26 @@ class TestTrialItem(TestCase):
 
         # A renderer callback must be provided and a callable
         with self.assertRaises(ValueError) as context:
-            experiments.TrialItem(renderer=1)
+            sperling.TrialItem(renderer=1)
         self.assertEqual(str(context.exception), 'renderer must be a callable')
 
         # A event_processor callback must be provided and a callable
         with self.assertRaises(ValueError) as context:
-            experiments.TrialItem(renderer=experiments.functions.no_op, event_processor=1)
+            sperling.TrialItem(renderer=sperling.constants.NO_OP, event_processor=1)
         self.assertEqual(str(context.exception), 'event_processor, if defined, must be a callable')
 
         # A pre callback must be provided and a callable
         with self.assertRaises(ValueError) as context:
-            experiments.TrialItem(renderer=experiments.functions.no_op, pre='invalid')
+            sperling.TrialItem(renderer=sperling.constants.NO_OP, pre='invalid')
         self.assertEqual(str(context.exception), 'pre, if defined, must be a callable')
 
         # A post callback, if provided, must be a callable
         with self.assertRaises(ValueError) as context:
-            experiments.TrialItem(renderer=experiments.functions.no_op, post='invalid')
+            sperling.TrialItem(renderer=sperling.constants.NO_OP, post='invalid')
         self.assertEqual(str(context.exception), 'post, if defined, must be a callable')
 
         with self.assertRaises(ValueError) as context:
-            experiments.TrialItem(renderer=experiments.functions.no_op, duration=-1)
+            sperling.TrialItem(renderer=sperling.constants.NO_OP, duration=-1)
         self.assertEqual(str(context.exception), 'duration, if defined, must be non-negative')
 
         # Valid input
@@ -88,8 +91,8 @@ class TestTrialItem(TestCase):
             post = lambda x: 4
             duration = 100
 
-            item = experiments.TrialItem(renderer=render, event_processor=event_p, pre=pre, post=post,
-                                         duration=duration)
+            item = sperling.TrialItem(renderer=render, event_processor=event_p, pre=pre, post=post,
+                                      duration=duration)
 
             self.assertEqual(item.renderer, render)
             self.assertEqual(item.event_processor, event_p)
@@ -106,14 +109,9 @@ class TestGridSpec(TestCase):
     def test_valid_grid_specs(self):
         try:
             # Test row and column bounds
-            experiments.GridSpec(n_rows=1, n_columns=1, charset_id='consonants')
-            experiments.GridSpec(n_rows=1, n_columns=10, charset_id='consonants')
-            experiments.GridSpec(n_rows=10, n_columns=1, charset_id='consonants')
-
-            # Test all valid charsets
-            experiments.GridSpec(n_rows=1, n_columns=1, charset_id='consonants')
-            experiments.GridSpec(n_rows=1, n_columns=1, charset_id='alpha')
-            experiments.GridSpec(n_rows=1, n_columns=1, charset_id='alphanum')
+            sperling.GridGenerator(n_rows=1, n_columns=1, charset=sperling.constants.CONSONANTS)
+            sperling.GridGenerator(n_rows=1, n_columns=10, charset=sperling.constants.CONSONANTS)
+            sperling.GridGenerator(n_rows=10, n_columns=1, charset=sperling.constants.CONSONANTS)
 
         except Exception as exc:
             self.fail('Raised unexpected exception: {}'.format(exc))
@@ -121,7 +119,7 @@ class TestGridSpec(TestCase):
     def test_invalid_grid_spec_raises_value_error(self):
         # Check row bounds
         with self.assertRaises(ValueError) as context:
-            experiments.GridSpec(n_rows=0, n_columns=1, charset_id='consonants')
+            sperling.GridGenerator(n_rows=0, n_columns=1, charset=sperling.constants.CONSONANTS)
 
         self.assertEqual(
             'Invalid Number of CharacterGrid Rows: Must be > 0.',
@@ -129,19 +127,10 @@ class TestGridSpec(TestCase):
 
         # Check Column Bounds
         with self.assertRaises(ValueError) as context:
-            experiments.GridSpec(n_rows=1, n_columns=0, charset_id='consonants')
+            sperling.GridGenerator(n_rows=1, n_columns=0, charset=sperling.constants.CONSONANTS)
 
         self.assertEqual(
             'Invalid Number of CharacterGrid Columns: Must be > 0.',
-            str(context.exception))
-
-        # Check Invalid Charset
-        with self.assertRaises(ValueError) as context:
-            experiments.GridSpec(n_rows=1, n_columns=1, charset_id='invalid')
-
-        self.assertEqual(
-            'Invalid CharacterGrid Character Set: Must be one of {}'.format(','.join(
-                sorted(experiments.charsets_dict.keys()))),
             str(context.exception))
 
     def test_create_grid(self):
@@ -151,8 +140,8 @@ class TestGridSpec(TestCase):
         charset_id = 'consonants'
 
         try:
-            spec = experiments.GridSpec(n_rows, n_columns, charset_id)
-            grid = spec.create_grid()
+            spec = sperling.GridGenerator(n_rows, n_columns, charset_id)
+            grid = spec()
 
             self.assertIsInstance(grid, list)
             self.assertEqual(len(grid), n_rows)
@@ -168,3 +157,39 @@ class TestGridSpec(TestCase):
 
         except Exception as exc:
             self.fail('Raised unexpected exception: {}'.format(exc))
+
+    def test_randomized_spec(self):
+        generate_grid = sperling.GridGenerator.get_random_spec(
+            range_rows=(1, 1),
+            range_columns=(5, 5),
+            charset=sperling.constants.CONSONANTS)
+
+        grid = generate_grid()
+        self.assertEqual(len(grid), 1)
+        self.assertEqual(len(grid[0]), 5)
+        self.assertTrue(all(map(lambda c: c in sperling.constants.CONSONANTS, itertools.chain.from_iterable(grid))))
+
+        row_low, row_high = 1, 5
+        column_low, column_high = 3, 5
+        for _ in range(100):
+            generate_grid = sperling.GridGenerator.get_random_spec(
+                range_rows=(row_low, row_high),
+                range_columns=(column_low, column_high),
+                charset=sperling.constants.CONSONANTS)
+
+            self.assertTrue(row_low <= len(generate_grid()) <= row_high)
+
+            for row in generate_grid():
+                self.assertTrue(column_low <= len(row) <= column_high)
+                self.assertTrue(
+                    all(map(lambda c: c in sperling.constants.CONSONANTS, itertools.chain.from_iterable(row))))
+
+    def test_to_string(self):
+        generator = sperling.GridGenerator(n_rows=3, n_columns=4, charset=sperling.constants.ALPHANUM,
+                                           allow_repeats=False)
+
+        expected_string = 'n_rows: {}, n_columns: {}, charset: {}, allow_repeats: {}'.format(generator.n_rows,
+                                                                                             generator.n_columns,
+                                                                                             generator.charset,
+                                                                                             generator.allow_repeats)
+        self.assertEqual(str(generator), expected_string)

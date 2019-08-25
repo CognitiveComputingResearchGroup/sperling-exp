@@ -1,7 +1,6 @@
 import pygame
-import experiments
-
-from experiments.experiment1 import Experiment
+import sperling
+import statistics
 
 pygame.init()
 
@@ -13,18 +12,23 @@ font = pygame.font.SysFont("consolas", size=32)
 # hide mouse cursor
 pygame.mouse.set_visible(False)
 
-experiment = Experiment(
-    screen=screen,
-    font=font,
-    stimulus_spec=experiments.GridSpec(n_rows=2, n_columns=5, charset_id=experiments.CHARSET_CONSONANTS),
-    duration_overrides={experiments.constants.STIMULUS: 50})
+N_SESSIONS = 10
+N_TRIALS_PER_SESSION = 50
 
 try:
-    while True:
-        total_elapsed_time = experiment.run()
-        print(experiment.results[-1])
+    for session in range(N_SESSIONS):
+        experiment = sperling.experiments.Experiment3(
+            screen=screen,
+            font=font,
+            duration_overrides={})
+
+        for trial in range(N_TRIALS_PER_SESSION):
+            total_elapsed_time = experiment.run()
+            print(experiment.results[-1])
+
+            # Stats
+            avg_correct = statistics.mean([sperling.n_correct(result) for result in experiment.results])
+            print('Average correct: {:.2f}'.format(avg_correct))
 
 except InterruptedError as exc:
     print(exc)
-
-# TODO: Stats

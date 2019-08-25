@@ -1,14 +1,12 @@
 import collections
+import itertools
 import random
 import copy
 import pygame
 
-import experiments.constants
-import experiments.datatypes
-import experiments.functions
-import experiments.view
-
-MAX_DURATION = 60000
+import sperling.constants
+import sperling.view
+import sperling.experiments
 
 
 class SerialTrialRunner(object):
@@ -21,21 +19,26 @@ class SerialTrialRunner(object):
     def run(self):
         elapsed_time = 0
         for item in self.trial:
-            item.pre()
-            time = self.execute_item(item, self)
+            pre_out = item.pre()
+            time, events = self.execute_item(item, self)
             elapsed_time += time
-            item.post(time=time, elapsed_time=elapsed_time)
+            item.post(time=time, elapsed_time=elapsed_time, events=events, pre_out=pre_out)
 
         return elapsed_time
 
-    @classmethod
-    def execute_item(cls, item, runner):
+    def execute_item(self, item, runner):
         elapsed_time = 0
         terminal_event = False
 
-        while not terminal_event and elapsed_time <= (item.duration or MAX_DURATION):
+        """
+            pygame.event.event_name - get the string name from an event id
+        """
+        events = []
+
+        while not terminal_event and elapsed_time <= (item.duration or constants.MAX_DURATION):
             # Process Events
             for event in pygame.event.get():
+                events.append(event)
 
                 # Global termination events
                 if view.is_terminal_event(event):
@@ -45,20 +48,20 @@ class SerialTrialRunner(object):
                 terminal_event = item.process_event(event)
 
             # Render surface updates
-            item.render(runner.surface)
+            item.render(self.surface)
             pygame.display.flip()
 
-            elapsed_time += runner.clock.get_time()
+            elapsed_time += self.clock.get_time()
 
             # Advance clock
-            runner.clock.tick(runner.fps)
+            self.clock.tick(runner.fps)
 
-        return elapsed_time
+        return elapsed_time, events
 
 
 class TrialItem(object):
-    def __init__(self, renderer, event_processor=experiments.functions.no_op, pre=experiments.functions.no_op,
-                 post=experiments.functions.no_op, duration=0):
+    def __init__(self, renderer, event_processor=sperling.constants.NO_OP, pre=sperling.constants.NO_OP,
+                 post=sperling.constants.NO_OP, duration=constants.MAX_DURATION):
         self.renderer = renderer
         self.event_processor = event_processor
         self.pre = pre
@@ -90,20 +93,13 @@ class TrialItem(object):
         return self.event_processor(event)
 
 
-CHARSET_ALPHANUM = 'alphanum'
-CHARSET_ALPHA = 'alpha'
-CHARSET_CONSONANTS = 'consonants'
+GridSpec = collections.namedtuple('GridSpec', ['n_rows', 'n_columns', 'charset', 'allow_repeats'])
 
-charsets_dict = {
-    CHARSET_CONSONANTS: constants.CONSONANTS,
-    CHARSET_ALPHA: constants.ALPHA,
-    CHARSET_ALPHANUM: constants.ALPHANUM}
-
-
-class GridSpec:
-    def __init__(self, n_rows, n_columns, charset_id, allow_repeats=True):
+class GridGenerator:
+    def __init__(self, n_rows, n_columns, charset, allow_repeats=True):
         self.n_rows = n_rows
         self.n_columns = n_columns
+        self.charset = charset
         self.allow_repeats = allow_repeats
 
         if self.n_rows <= 0:
@@ -112,23 +108,40 @@ class GridSpec:
         if self.n_columns <= 0:
             raise ValueError('Invalid Number of CharacterGrid Columns: Must be > 0.')
 
-        try:
-            self.charset = charsets_dict[charset_id]
-        except KeyError:
-            raise ValueError(
-                'Invalid CharacterGrid Character Set: Must be one of {}'.format(','.join(
-                    sorted(charsets_dict.keys()))))
-
-    def create_grid(self):
+    def __call__(self, *args, **kwargs):
         chars = random.choices(list(self.charset), k=self.n_rows * self.n_columns) \
             if self.allow_repeats else random.sample(self.charset, k=self.n_rows * self.n_columns)
         return [chars[i * self.n_columns:(i + 1) * self.n_columns] for i in range(self.n_rows)]
+
+    def __str__(self):
+        return 'n_rows: {}, n_columns: {}, charset: {}, allow_repeats: {}'.format(self.n_rows,
+                                                                                  self.n_columns,
+                                                                                  self.charset,
+                                                                                  self.allow_repeats)
+
+    @classmethod
+    def get_random_spec(cls, range_rows, range_columns, charset, allow_repeats=True):
+        """ Generates a random grid spec with bounded dimensions.
+
+        Args:
+            range_rows (tuple): low/high range (inclusive) for number of grid rows
+            range_columns (tuple): low/high range (inclusive) for number of grid columns
+            charset (list): character set from which samples will be drawn
+
+        Returns:
+            GridGenerator: a rectangular, 2d-list of characters
+
+        """
+        n_rows = random.randint(*range_rows)
+        n_columns = random.randint(*range_columns)
+
+        return GridGenerator(n_rows=n_rows, n_columns=n_columns, charset=charset, allow_repeats=allow_repeats)
 
 
 ResponseEntry = collections.namedtuple('ResponseEntry', ['response_time', 'actual_response', 'correct_response'])
 
 
-class ResponseStatsProcessor(object):
+class ResponseProcessor(object):
     def __init__(self, correct, actual, results):
         self.correct = correct
         self.actual = actual
@@ -141,3 +154,8 @@ class ResponseStatsProcessor(object):
             correct_response=copy.deepcopy(self.correct)
         )
         self.results.append(entry)
+
+
+def n_correct(result):
+    return sum(1 for a, c in zip(itertools.chain.from_iterable(result.actual_response),
+                                 itertools.chain.from_iterable(result.correct_response)) if a == c)

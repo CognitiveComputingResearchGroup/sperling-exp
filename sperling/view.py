@@ -1,7 +1,9 @@
+import collections
+from collections import __init__
+
 import pygame
 
-import experiments.constants
-from experiments.datatypes import Dimensions
+import sperling.constants
 
 
 def is_terminal_event(event):
@@ -44,12 +46,12 @@ class CrossHairs(pygame.sprite.Sprite):
         self.color = color
 
         self.image = pygame.Surface([size, size])
-        self.image.set_colorkey(experiments.constants.BLACK)
+        self.image.set_colorkey(sperling.constants.BLACK)
 
         self.rect = self.image.get_rect()
 
     def update(self):
-        self.image.fill(experiments.constants.BLACK)
+        self.image.fill(sperling.constants.BLACK)
 
         pygame.draw.line(self.image, self.color, (0, self.size // 2), (self.size, self.size // 2), 5)
         pygame.draw.line(self.image, self.color, (self.size // 2, 0), (self.size // 2, self.size), 5)
@@ -107,7 +109,7 @@ class CharacterGridWithArrowCues(pygame.sprite.Sprite):
         return width, height
 
     def update(self):
-        self.image.fill(experiments.constants.BLACK)
+        self.image.fill(sperling.constants.BLACK)
 
         self.grid.update()
         self.grid.rect.topleft = (self._arrow_dims.width, 0)
@@ -125,12 +127,12 @@ class CharacterGridWithArrowCues(pygame.sprite.Sprite):
 
         for i in range(self.grid.n_rows):
             arrow_pos = (
-                    0,
-                    spacer_height + i * (self.grid._char_dims.height + self.grid._y_char_spacer) + self.grid._y_margin
-                )
+                0,
+                spacer_height + i * (self.grid._char_dims.height + self.grid._y_char_spacer) + self.grid._y_margin
+            )
 
             sprite = ArrowCue(self._arrow_dims,
-                              color=experiments.constants.GREEN if i == self.cue_row else experiments.constants.GRAY)
+                              color=sperling.constants.GREEN if i == self.cue_row else sperling.constants.GRAY)
             sprite.rect.topleft = arrow_pos
 
             sprites.append(sprite)
@@ -147,7 +149,7 @@ class CharacterGrid(pygame.sprite.Sprite):
         self.n_columns = len(grid[0])
 
         self.font = font
-        self.color_grid = color_grid or [[experiments.constants.WHITE] * self.n_columns for _ in range(self.n_rows)]
+        self.color_grid = color_grid or [[sperling.constants.WHITE] * self.n_columns for _ in range(self.n_rows)]
 
         self._x_margin, self._y_margin = (0, 0)
         self._x_char_spacer, self._y_char_spacer = (5, 0)
@@ -156,7 +158,7 @@ class CharacterGrid(pygame.sprite.Sprite):
 
         # Pygame Surfaces and Sprites
         self.image = pygame.Surface(self._grid_dims)
-        self.image.set_colorkey(experiments.constants.BLACK)
+        self.image.set_colorkey(sperling.constants.BLACK)
 
         self.rect = self.image.get_rect()
 
@@ -186,7 +188,7 @@ class CharacterGrid(pygame.sprite.Sprite):
         return sprites
 
     def update(self):
-        self.image.fill(experiments.constants.BLACK)
+        self.image.fill(sperling.constants.BLACK)
         self._sprite_group.update()
         self._sprite_group.draw(self.image)
 
@@ -203,7 +205,7 @@ class GridRenderer:
 
     def __call__(self, *args, **kwargs):
         # clear previously rendered letters
-        self.surface.fill(experiments.constants.BLACK)
+        self.surface.fill(sperling.constants.BLACK)
 
         self.grid.rect.topleft = self.pos
         self.grid.update()
@@ -215,21 +217,21 @@ class GridRenderer:
 
 
 class FeedbackGridRenderer:
-    def __init__(self, surface, grid, correct_response, actual_response):
+    def __init__(self, surface, grid, correct, actual):
         self.surface = surface
         self.grid = grid
-        self.correct_response = correct_response
-        self.actual_response = actual_response
+        self.correct = correct
+        self.actual_response = actual
 
     def __call__(self, *args, **kwargs):
-        n_rows = len(self.correct_response)
-        n_cols = len(self.correct_response[0])
+        n_rows = len(self.correct)
+        n_cols = len(self.correct[0])
 
         for i in range(n_rows):
             for j in range(n_cols):
-                self.grid.color_grid[i][j] = self._color(self.correct_response[i][j], self.actual_response[i][j])
+                self.grid.color_grid[i][j] = self._color(self.correct[i][j], self.actual_response[i][j])
 
-        self.grid.image.fill(experiments.constants.BLACK)
+        self.grid.image.fill(sperling.constants.BLACK)
         self.grid.update()
 
         self.surface.blit(self.grid.image, self.grid.rect)
@@ -237,8 +239,8 @@ class FeedbackGridRenderer:
         self.grid.refresh()
 
     def _color(self, correct, actual):
-        correct_color = experiments.constants.GREEN
-        incorrect_color = experiments.constants.RED
+        correct_color = sperling.constants.GREEN
+        incorrect_color = sperling.constants.RED
 
         return correct_color if actual == correct else incorrect_color
 
@@ -273,7 +275,7 @@ class WaitUntilKeyHandler(object):
         return False
 
 
-key_dict = {eval('pygame.K_{}'.format(char.lower())): char.upper() for char in experiments.constants.CONSONANTS}
+key_dict = {eval('pygame.K_{}'.format(char.lower())): char.upper() for char in sperling.constants.CONSONANTS}
 
 
 class GridEventHandler(WaitUntilKeyHandler):
@@ -286,7 +288,7 @@ class GridEventHandler(WaitUntilKeyHandler):
         self.pos = [0, 0]
 
         # Highlight character in current position
-        self.grid.color_grid[self.pos[0]][self.pos[1]] = experiments.constants.YELLOW
+        self.grid.color_grid[self.pos[0]][self.pos[1]] = sperling.constants.YELLOW
         self.view.refresh()
 
     def __call__(self, event):
@@ -317,8 +319,11 @@ class GridEventHandler(WaitUntilKeyHandler):
             elif event.key == pygame.K_RIGHT:
                 self.pos[1] = (self.pos[1] + 1) % self.n_cols
 
-            self.grid.color_grid[prev_pos[0]][prev_pos[1]] = experiments.constants.WHITE
-            self.grid.color_grid[self.pos[0]][self.pos[1]] = experiments.constants.YELLOW
+            self.grid.color_grid[prev_pos[0]][prev_pos[1]] = sperling.constants.WHITE
+            self.grid.color_grid[self.pos[0]][self.pos[1]] = sperling.constants.YELLOW
 
             self.view.refresh()
         return super().__call__(event)
+
+
+Dimensions = collections.namedtuple('Dimensions', ['width', 'height'])

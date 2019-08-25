@@ -1,6 +1,8 @@
 import unittest
-import experiments
+import sperling
 import pygame
+
+import sperling.constants
 
 pygame.init()
 screen = pygame.display.set_mode((32, 24))
@@ -8,12 +10,12 @@ screen = pygame.display.set_mode((32, 24))
 
 class TestPygameGrid(unittest.TestCase):
     def test_init(self):
-        grid_spec = experiments.GridSpec(n_rows=3, n_columns=4, charset_id=experiments.CHARSET_CONSONANTS)
+        grid_spec = sperling.GridGenerator(n_rows=3, n_columns=4, charset=sperling.constants.CONSONANTS)
         font = pygame.font.SysFont("courier", size=100)
-        grid_values = grid_spec.create_grid()
+        grid_values = grid_spec()
 
         try:
-            char_grid = experiments.view.CharacterGrid(grid=grid_values, font=font)
+            char_grid = sperling.view.CharacterGrid(grid=grid_values, font=font)
 
             # Check internal state after initializer assignments
             self.assertIs(char_grid.grid, grid_values)
