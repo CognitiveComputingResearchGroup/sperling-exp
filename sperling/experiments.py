@@ -3,6 +3,8 @@ import pygame
 import random
 import collections
 
+from sperling.view import Dimensions
+
 
 class Experiment(object):
     def __init__(self, screen, font, duration_overrides=None, n_trials=1):
@@ -15,9 +17,6 @@ class Experiment(object):
 
         self.trial_items = list()
         self.results = list()
-
-        # vertical pixel shift (below center) for response grid
-        self.response_grid_vertical_offset = 200
 
     def reset(self):
         self.results = self.results.clear()
@@ -90,7 +89,7 @@ class Experiment1(Experiment):
         self.screen.fill(sperling.constants.BLACK)
 
         # 1 - fixation period on crosshairs (advance on ENTER)
-        crosshairs_width = 100
+        crosshairs_width = max(screen_dims) // 10
         crosshairs = sperling.view.CrossHairs(
             size=crosshairs_width,
             color=sperling.constants.WHITE)
@@ -131,8 +130,10 @@ class Experiment1(Experiment):
 
         char_grid = sperling.view.CharacterGrid(grid=self.response_grid, font=self.font)
 
+        response_grid_vert_offset = (screen_dims.height - char_grid.image.get_height()) // 2.5
+
         x = (screen_dims.width - char_grid.image.get_width()) // 2
-        y = (screen_dims.height - char_grid.image.get_height()) // 2 + self.response_grid_vertical_offset
+        y = (screen_dims.height - char_grid.image.get_height()) // 2 + response_grid_vert_offset
 
         response_renderer = sperling.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x, y))
         response_event_processor = sperling.view.GridEventHandler(
@@ -184,7 +185,7 @@ class Experiment2(Experiment):
         self.screen.fill(sperling.constants.BLACK)
 
         # 1 - fixation period on crosshairs (advance on ENTER)
-        crosshairs_width = 100
+        crosshairs_width = max(screen_dims) // 10
         crosshairs = sperling.view.CrossHairs(
             size=crosshairs_width,
             color=sperling.constants.WHITE)
@@ -225,8 +226,10 @@ class Experiment2(Experiment):
 
         char_grid = sperling.view.CharacterGrid(grid=self.response_grid, font=self.font)
 
+        response_grid_vert_offset = (screen_dims.height - char_grid.image.get_height()) // 2.5
+
         x = (screen_dims.width - char_grid.image.get_width()) // 2
-        y = (screen_dims.height - char_grid.image.get_height()) // 2 + self.response_grid_vertical_offset
+        y = (screen_dims.height - char_grid.image.get_height()) // 2 + response_grid_vert_offset
 
         response_renderer = sperling.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x, y))
         response_event_processor = sperling.view.GridEventHandler(
@@ -292,7 +295,7 @@ class Experiment3(Experiment):
         screen_dims = sperling.view.Dimensions(*self.screen.get_size())
 
         # 1 - fixation period on crosshairs (advance on ENTER)
-        crosshairs_width = 100
+        crosshairs_width = max(screen_dims) // 10
         crosshairs = sperling.view.CrossHairs(
             size=crosshairs_width,
             color=sperling.constants.WHITE)
@@ -338,7 +341,9 @@ class Experiment3(Experiment):
         # 5 - cue
         cue_index = random.randint(0, len(stimulus_grid) - 1)
 
-        arrow_grid = sperling.view.CharacterGridWithArrowCues(char_grid, cue_row=cue_index)
+        # arrow_dims = Dimensions(width=50, height=20)
+        arrow_dims = Dimensions(width=screen_dims.width // 8, height=screen_dims.height // 28)
+        arrow_grid = sperling.view.CharacterGridWithArrowCues(char_grid, arrow_dims, cue_row=cue_index)
 
         x = (screen_dims.width - arrow_grid.image.get_width()) // 2
         y = (screen_dims.height - arrow_grid.image.get_height()) // 2
@@ -357,8 +362,10 @@ class Experiment3(Experiment):
 
         char_grid = sperling.view.CharacterGrid(grid=response_grid, font=self.font)
 
+        response_grid_vert_offset = (screen_dims.height - char_grid.image.get_height()) // 2.5
+
         x = (screen_dims.width - char_grid.image.get_width()) // 2
-        y = (screen_dims.height - char_grid.image.get_height()) // 2 + self.response_grid_vertical_offset
+        y = (screen_dims.height - char_grid.image.get_height()) // 2 + response_grid_vert_offset
 
         response_renderer = sperling.view.GridRenderer(surface=self.screen, grid=char_grid, pos=(x, y))
         response_event_processor = sperling.view.GridEventHandler(

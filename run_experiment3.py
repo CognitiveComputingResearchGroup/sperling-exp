@@ -6,8 +6,10 @@ from sperling.view import find_font
 
 pygame.init()
 
-flags = pygame.FULLSCREEN
+# flags = pygame.FULLSCREEN
+flags = 0
 screen = pygame.display.set_mode((1024, 768), flags)
+# screen = pygame.display.set_mode((256, 192), flags)
 
 # hide mouse cursor
 pygame.mouse.set_visible(False)
@@ -16,6 +18,7 @@ pygame.mouse.set_visible(False)
 font = None
 try:
     font = find_font(acceptable_fonts=['consolas', 'ubuntumono'], size=48)
+    # font = find_font(acceptable_fonts=['consolas', 'ubuntumono'], size=16)
 except EnvironmentError as e:
     print(e)
     exit(1)

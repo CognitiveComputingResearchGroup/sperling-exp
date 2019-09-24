@@ -34,9 +34,11 @@ class ArrowCue(pygame.sprite.Sprite):
 
     def update(self):
         width, height = self.image.get_size()
+        head_width = width // 5
         pygame.draw.polygon(self.image, self.color,
-                            [(0, height // 4), (width - 10, height // 4), (width - 10, 0), (width, height // 2),
-                             (width - 10, height), (width - 10, 3 * height // 4), (0, 3 * height // 4)])
+                            [(0, height // 4), (width - head_width, height // 4), (width - head_width, 0),
+                             (width, height // 2), (width - head_width, height),
+                             (width - head_width, 3 * height // 4), (0, 3 * height // 4)])
 
 
 class CrossHairs(pygame.sprite.Sprite):
@@ -83,7 +85,7 @@ class Character(pygame.sprite.Sprite):
 
 
 class CharacterGridWithArrowCues(pygame.sprite.Sprite):
-    def __init__(self, grid, cue_row, grid_visible=False):
+    def __init__(self, grid, arrow_dims, cue_row, grid_visible=False):
         """
 
         :param grid (CharacterGrid): a 2d character grid
@@ -92,13 +94,13 @@ class CharacterGridWithArrowCues(pygame.sprite.Sprite):
         super().__init__()
 
         self.grid = grid
+        self.arrow_dims = arrow_dims
         self.cue_row = cue_row
         self.grid_visible = grid_visible
 
         self._x_arrow_spacer, self._y_arrow_spacer = (10, 10)
 
-        self._arrow_dims = Dimensions(50, 25)
-        self._grid_dims = self._get_grid_dims()
+        self._grid_dims = Dimensions(*self._get_grid_dims())
 
         self.image = pygame.Surface(self._grid_dims)
         self.rect = self.image.get_rect()
@@ -107,7 +109,7 @@ class CharacterGridWithArrowCues(pygame.sprite.Sprite):
         self.sprites_group.add(self._create_sprites())
 
     def _get_grid_dims(self):
-        width = self._x_arrow_spacer + self._arrow_dims.width + self.grid._grid_dims.width
+        width = self._x_arrow_spacer + self.arrow_dims.width + self.grid._grid_dims.width
 
         # column arrow cues not supported yet, so this is just the grid height
         height = self.grid._grid_dims.height
@@ -118,7 +120,7 @@ class CharacterGridWithArrowCues(pygame.sprite.Sprite):
         self.image.fill(sperling.constants.BLACK)
 
         self.grid.update()
-        self.grid.rect.topleft = (self._arrow_dims.width, 0)
+        self.grid.rect.topleft = (self.arrow_dims.width, 0)
 
         if self.grid_visible:
             self.image.blit(self.grid.image, self.grid.rect)
@@ -129,7 +131,7 @@ class CharacterGridWithArrowCues(pygame.sprite.Sprite):
     def _create_sprites(self):
         sprites = []
 
-        spacer_height = (self.grid._char_dims.height - self._arrow_dims.height) // 2
+        spacer_height = (self.grid._char_dims.height - self.arrow_dims.height) // 2
 
         for i in range(self.grid.n_rows):
             arrow_pos = (
@@ -137,7 +139,7 @@ class CharacterGridWithArrowCues(pygame.sprite.Sprite):
                 spacer_height + i * (self.grid._char_dims.height + self.grid._y_char_spacer) + self.grid._y_margin
             )
 
-            sprite = ArrowCue(self._arrow_dims,
+            sprite = ArrowCue(self.arrow_dims,
                               color=sperling.constants.GREEN if i == self.cue_row else sperling.constants.GRAY)
             sprite.rect.topleft = arrow_pos
 
