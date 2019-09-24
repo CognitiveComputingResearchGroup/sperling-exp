@@ -3,10 +3,28 @@ import itertools
 import random
 import copy
 import pygame
+import uuid
 
 import sperling.constants
 import sperling.view
 import sperling.experiments
+
+
+class Session(object):
+
+    def __init__(self, subject, experiments):
+        self.subject = subject
+        self.experiments = experiments
+
+        self.session_id = Session._generate_session_id()
+
+    @staticmethod
+    def _generate_session_id():
+        return uuid.uuid4()
+
+    def run(self, fps=sperling.constants.DEFAULT_FPS):
+        for experiment in self.experiments:
+            experiment.run(fps)
 
 
 class SerialTrialRunner(object):
@@ -16,52 +34,66 @@ class SerialTrialRunner(object):
         self.surface = surface
         self.fps = fps
 
+        self.times_per_item = collections.OrderedDict()
+
     def run(self):
         elapsed_time = 0
         for item in self.trial:
+            item_time = 0
+            elapsed_time = 0
+
             pre_out = item.pre()
-            time, events = self.execute_item(item, self)
-            elapsed_time += time
-            item.post(time=time, elapsed_time=elapsed_time, events=events, pre_out=pre_out)
+
+            try:
+                item_time = self._execute_item(item, self)
+                self.times_per_item[item.name] = item_time
+            except InterruptedError as exc:
+                raise exc
+            finally:
+                item.post(time=item_time, elapsed_time=elapsed_time, pre_out=pre_out)
 
         return elapsed_time
 
-    def execute_item(self, item, runner):
+    def _execute_item(self, item, runner):
         elapsed_time = 0
-        terminal_event = False
 
-        """
-            pygame.event.event_name - get the string name from an event id
-        """
-        events = []
+        terminated = False
 
-        while not terminal_event and elapsed_time <= (item.duration or constants.MAX_DURATION):
-            # Process Events
-            for event in pygame.event.get():
-                events.append(event)
-
-                # Global termination events
-                if view.is_terminal_event(event):
-                    raise InterruptedError('User terminated experiment')
-
-                # Item specific event processing
-                terminal_event = item.process_event(event)
+        while not terminated and elapsed_time <= (item.duration or constants.MAX_DURATION):
+            terminated = self._process_events(item)
 
             # Render surface updates
             item.render(self.surface)
-            pygame.display.flip()
 
             elapsed_time += self.clock.get_time()
 
             # Advance clock
             self.clock.tick(runner.fps)
 
-        return elapsed_time, events
+        return elapsed_time
+
+    def _process_events(self, item):
+        is_terminal_event = False
+
+        for event in pygame.event.get():
+            # global termination events
+            if view.is_terminal_event(event):
+                raise InterruptedError('User terminated experiment')
+
+            # item-specific event processing
+            if event.type == pygame.KEYDOWN:
+
+                is_terminal_event = item.process_event(event)
+                if is_terminal_event:
+                    break
+
+        return is_terminal_event
 
 
 class TrialItem(object):
-    def __init__(self, renderer, event_processor=sperling.constants.NO_OP, pre=sperling.constants.NO_OP,
+    def __init__(self, name, renderer, event_processor=sperling.constants.NO_OP, pre=sperling.constants.NO_OP,
                  post=sperling.constants.NO_OP, duration=constants.MAX_DURATION):
+        self.name = name
         self.renderer = renderer
         self.event_processor = event_processor
         self.pre = pre
@@ -95,6 +127,7 @@ class TrialItem(object):
 
 GridSpec = collections.namedtuple('GridSpec', ['n_rows', 'n_columns', 'charset', 'allow_repeats'])
 
+
 class GridGenerator:
     def __init__(self, n_rows, n_columns, charset, allow_repeats=True):
         self.n_rows = n_rows
@@ -127,6 +160,7 @@ class GridGenerator:
             range_rows (tuple): low/high range (inclusive) for number of grid rows
             range_columns (tuple): low/high range (inclusive) for number of grid columns
             charset (list): character set from which samples will be drawn
+            allow_repeats (bool): specifies whether character values can appear more than once
 
         Returns:
             GridGenerator: a rectangular, 2d-list of characters
@@ -138,22 +172,24 @@ class GridGenerator:
         return GridGenerator(n_rows=n_rows, n_columns=n_columns, charset=charset, allow_repeats=allow_repeats)
 
 
-ResponseEntry = collections.namedtuple('ResponseEntry', ['response_time', 'actual_response', 'correct_response'])
+ResponseEntry = collections.namedtuple('ResponseEntry',
+                                       ['response_time', 'actual_response', 'correct_response', 'durations'])
 
 
 class ResponseProcessor(object):
-    def __init__(self, correct, actual, results):
+    def __init__(self, correct, actual, experiment):
         self.correct = correct
         self.actual = actual
-        self.results = results
+        self.experiment = experiment
 
     def __call__(self, *args, **kwargs):
         entry = ResponseEntry(
             response_time=kwargs['time'],
             actual_response=copy.deepcopy(self.actual),
-            correct_response=copy.deepcopy(self.correct)
+            correct_response=copy.deepcopy(self.correct),
+            durations=self.experiment.durations
         )
-        self.results.append(entry)
+        self.experiment.results.append(entry)
 
 
 def n_correct(result):

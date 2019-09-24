@@ -211,6 +211,7 @@ class GridRenderer:
         self.grid.update()
 
         self.surface.blit(self.grid.image, self.grid.rect)
+        pygame.display.flip()
 
     def refresh(self):
         self.grid.refresh()
@@ -237,6 +238,7 @@ class FeedbackGridRenderer:
         self.surface.blit(self.grid.image, self.grid.rect)
 
         self.grid.refresh()
+        pygame.display.flip()
 
     def _color(self, correct, actual):
         correct_color = sperling.constants.GREEN
@@ -253,6 +255,7 @@ class SpriteRenderer(object):
     def __call__(self, *args, **kwargs):
         self.sprite.update()
         self.screen.blit(self.sprite.image, self.sprite.rect)
+        pygame.display.flip()
 
 
 class MaskRenderer(object):
@@ -262,6 +265,7 @@ class MaskRenderer(object):
 
     def __call__(self, *args, **kwargs):
         self.screen.fill(self.color)
+        pygame.display.flip()
 
 
 class WaitUntilKeyHandler(object):

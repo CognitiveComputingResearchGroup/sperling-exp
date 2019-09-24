@@ -1,6 +1,6 @@
 import itertools
 from unittest import TestCase
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 
 import sperling
 import pygame
@@ -9,14 +9,16 @@ import sperling.constants
 
 pygame.init()
 screen = pygame.display.set_mode((32, 24))
+font = pygame.font.SysFont("consolas", size=1)
 
 
 class TestSerialTrialRunner(TestCase):
 
     def setUp(self):
         self._items = [
-            sperling.TrialItem(
-                renderer=MagicMock(), event_processor=MagicMock(), pre=MagicMock(), post=MagicMock(), duration=50)
+            sperling.TrialItem(name='',
+                               renderer=MagicMock(), event_processor=MagicMock(), pre=MagicMock(), post=MagicMock(),
+                               duration=50)
             for i in range(10)]
 
     @patch('pygame.event.get', MagicMock(return_value=[pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE)]))
@@ -40,7 +42,7 @@ class TestSerialTrialRunner(TestCase):
             for item in runner.trial:
                 item.pre.assert_called()
                 item.renderer.assert_called()
-                # item.event_processor.assert_called()
+                item.event_processor.assert_called()
                 item.post.assert_called()
 
         except Exception as exc:
@@ -61,39 +63,41 @@ class TestTrialItem(TestCase):
 
         # A renderer callback must be provided and a callable
         with self.assertRaises(ValueError) as context:
-            sperling.TrialItem(renderer=1)
+            sperling.TrialItem(name='', renderer=1)
         self.assertEqual(str(context.exception), 'renderer must be a callable')
 
         # A event_processor callback must be provided and a callable
         with self.assertRaises(ValueError) as context:
-            sperling.TrialItem(renderer=sperling.constants.NO_OP, event_processor=1)
+            sperling.TrialItem(name='', renderer=sperling.constants.NO_OP, event_processor=1)
         self.assertEqual(str(context.exception), 'event_processor, if defined, must be a callable')
 
         # A pre callback must be provided and a callable
         with self.assertRaises(ValueError) as context:
-            sperling.TrialItem(renderer=sperling.constants.NO_OP, pre='invalid')
+            sperling.TrialItem(name='', renderer=sperling.constants.NO_OP, pre='invalid')
         self.assertEqual(str(context.exception), 'pre, if defined, must be a callable')
 
         # A post callback, if provided, must be a callable
         with self.assertRaises(ValueError) as context:
-            sperling.TrialItem(renderer=sperling.constants.NO_OP, post='invalid')
+            sperling.TrialItem(name='', renderer=sperling.constants.NO_OP, post='invalid')
         self.assertEqual(str(context.exception), 'post, if defined, must be a callable')
 
         with self.assertRaises(ValueError) as context:
-            sperling.TrialItem(renderer=sperling.constants.NO_OP, duration=-1)
+            sperling.TrialItem(name='', renderer=sperling.constants.NO_OP, duration=-1)
         self.assertEqual(str(context.exception), 'duration, if defined, must be non-negative')
 
         # Valid input
         try:
+            name = 'item name'
             pre = lambda x: 1
             render = lambda x: 2
             event_p = lambda x: 3
             post = lambda x: 4
             duration = 100
 
-            item = sperling.TrialItem(renderer=render, event_processor=event_p, pre=pre, post=post,
+            item = sperling.TrialItem(name=name, renderer=render, event_processor=event_p, pre=pre, post=post,
                                       duration=duration)
 
+            self.assertEqual(item.name, name)
             self.assertEqual(item.renderer, render)
             self.assertEqual(item.event_processor, event_p)
             self.assertEqual(item.pre, pre)
@@ -104,7 +108,7 @@ class TestTrialItem(TestCase):
             self.fail('Unexpected exception: {}'.format(exc))
 
 
-class TestGridSpec(TestCase):
+class TestGridGenerator(TestCase):
 
     def test_valid_grid_specs(self):
         try:
@@ -193,3 +197,58 @@ class TestGridSpec(TestCase):
                                                                                              generator.charset,
                                                                                              generator.allow_repeats)
         self.assertEqual(str(generator), expected_string)
+
+
+class TestSession(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.subject = 'Roy E. Subject'
+        cls.experiments = [sperling.experiments.Experiment1(screen, font)]
+        cls.session_id = '123-456-789'
+        cls.prng_seed = 8675309
+
+    def test_create_session(self):
+        try:
+            session = sperling.Session(subject=self.subject, experiments=self.experiments)
+
+            # verify field values initialized properly from arguments
+            self.assertEqual(session.subject, self.subject)
+            self.assertListEqual(session.experiments, self.experiments)
+            self.assertIsNotNone(session.session_id)
+
+        except Exception as exc:
+            self.fail('Unexpected exception: {}'.format(exc))
+
+    def test_run(self):
+        exp1 = sperling.experiments.Experiment1(screen, font)
+        exp1.run = Mock(return_value=None)
+
+        exp2 = sperling.experiments.Experiment1(screen, font)
+        exp2.run = Mock(return_value=None)
+
+        session = sperling.Session(self.subject, experiments=[exp1, exp2])
+
+        try:
+            session.run()
+
+            exp1.run.assert_called_once()
+            exp2.run.assert_called_once()
+
+        except Exception as exc:
+            self.fail('Unexpected exception: {}'.format(exc))
+
+
+class TestExperiment(TestCase):
+
+    @patch('sperling.SerialTrialRunner.run')
+    def test_run(self, run):
+        experiment = sperling.experiments.Experiment1(screen, font, n_trials=10)
+
+        try:
+            experiment.run()
+
+            self.assertEqual(run.call_count, experiment.n_trials)
+
+        except Exception as exc:
+            self.fail('Unexpected exception: {}'.format(exc))
