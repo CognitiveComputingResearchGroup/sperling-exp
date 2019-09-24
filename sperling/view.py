@@ -1,9 +1,15 @@
 import collections
-from collections import __init__
-
 import pygame
 
 import sperling.constants
+
+
+def find_font(acceptable_fonts, size):
+    available_fonts = list(set(acceptable_fonts).intersection(set(pygame.font.get_fonts())))
+    if not available_fonts:
+        raise EnvironmentError('No acceptable fonts found! acceptable fonts = ({})]'.format(','.join(acceptable_fonts)))
+
+    return pygame.font.SysFont(available_fonts[0], size=size)
 
 
 def is_terminal_event(event):

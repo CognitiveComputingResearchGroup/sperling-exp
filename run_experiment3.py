@@ -2,14 +2,23 @@ import pygame
 import sperling
 import statistics
 
+from sperling.view import find_font
+
 pygame.init()
 
 flags = pygame.FULLSCREEN
-screen = pygame.display.set_mode((1024, 768), flags=flags)
-font = pygame.font.SysFont("consolas", size=48)
+screen = pygame.display.set_mode((1024, 768), flags)
 
 # hide mouse cursor
 pygame.mouse.set_visible(False)
+
+# find available system font
+font = None
+try:
+    font = find_font(acceptable_fonts=['consolas', 'ubuntumono'], size=48)
+except EnvironmentError as e:
+    print(e)
+    exit(1)
 
 experiments = [
     sperling.experiments.Experiment3(screen=screen, font=font, n_trials=50)
